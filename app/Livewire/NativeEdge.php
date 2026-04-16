@@ -1,0 +1,234 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Livewire;
+
+use Livewire\Component;
+use Native\Mobile\Attributes\OnNative;
+use Native\Mobile\Events\Biometric\Completed as BiometricCompleted;
+use Native\Mobile\Events\Camera\PhotoTaken;
+use Native\Mobile\Events\Scanner\CodeScanned;
+use Native\Mobile\Facades\Biometrics;
+use Native\Mobile\Facades\Browser;
+use Native\Mobile\Facades\Camera;
+use Native\Mobile\Facades\Scanner;
+use Native\Mobile\Facades\Share;
+
+/**
+ * The shell's catch-all screen renderer.
+ *
+ * Reads `storage/app/mua-manifest.json` produced by the pub's BuildAssembler,
+ * resolves the screen matching the current URL path, and hands the block
+ * tree to the Blade template for rendering.
+ *
+ * Native capability triggers (`native-action` blocks) call into this
+ * component via `wire:click="triggerCapability(...)"`. Asynchronous native
+ * events route back via `#[OnNative]` listeners below and update Livewire
+ * state so the Blade view re-renders with the result.
+ */
+class NativeEdge extends Component
+{
+    public string $path = '/';
+
+    /** @var array<string, mixed>|null */
+    public ?array $screen = null;
+
+    /** @var array<string, mixed>|null */
+    public ?array $manifest = null;
+
+    public string $title = '';
+
+    /** @var array<int, array<string, mixed>> */
+    public array $navTabs = [];
+
+    public string $message = '';
+
+    /**
+     * Biometric auth-gate state keyed by gate id. An auth-gate block hides
+     * its inner blocks until `triggerAuthGate($id)` completes with success.
+     *
+     * @var array<string, bool>
+     */
+    public array $gates = [];
+
+    /**
+     * Last native callback payload keyed by capability, so native-action
+     * blocks can display e.g. the path of the photo just taken.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public array $lastCallback = [];
+
+    public function mount(string $any = ''): void
+    {
+        $this->path = '/' . ltrim($any, '/');
+        $this->loadManifest();
+    }
+
+    protected function loadManifest(): void
+    {
+        $manifestPath = storage_path('app/mua-manifest.json');
+        $sigPath      = storage_path('app/mua-manifest.sig');
+
+        if (! file_exists($manifestPath)) {
+            $this->message = 'Manifest not found. Project a build from the publisher and redeploy this shell.';
+            return;
+        }
+
+        $raw = file_get_contents($manifestPath);
+        if ($raw === false) {
+            $this->message = 'Could not read manifest file.';
+            return;
+        }
+
+        // HMAC verification (fail-closed when key is configured). The pub's
+        // BuildAssembler signs the exact bytes it wrote; we HMAC those same
+        // bytes with MUA_APPKEY and reject tampered builds before any screen
+        // data is trusted. Skipped only when MUA_APPKEY is absent (local dev).
+        $appKey = env('MUA_APPKEY') ? trim((string) env('MUA_APPKEY')) : '';
+        if ($appKey !== '') {
+            if (! file_exists($sigPath)) {
+                $this->message = 'Manifest signature missing. Refusing to render unsigned build.';
+                return;
+            }
+            $providedSig = trim((string) file_get_contents($sigPath));
+            $computedSig = hash_hmac('sha256', $raw, $appKey);
+            if (! hash_equals($computedSig, $providedSig)) {
+                $this->message = 'Manifest signature mismatch. Refusing to render tampered build.';
+                return;
+            }
+        }
+
+        $manifest = json_decode($raw, true);
+        if (! is_array($manifest)) {
+            $this->message = 'Manifest is not valid JSON.';
+            return;
+        }
+
+        $this->manifest = $manifest;
+        $this->title    = (string) ($manifest['branding']['name'] ?? config('app.name', 'App'));
+        $this->navTabs  = $this->resolveNavTabs($manifest);
+        $this->screen   = $this->resolveScreen($manifest, $this->path);
+
+        if (! $this->screen) {
+            $this->message = 'No screen configured for path ' . $this->path;
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $manifest
+     * @return array<int, array<string, mixed>>
+     */
+    protected function resolveNavTabs(array $manifest): array
+    {
+        $nav = $manifest['navigation'] ?? [];
+        $tabs = is_array($nav) && isset($nav['tabs']) && is_array($nav['tabs']) ? $nav['tabs'] : [];
+        return array_values(array_filter($tabs, 'is_array'));
+    }
+
+    /**
+     * @param array<string, mixed> $manifest
+     */
+    protected function resolveScreen(array $manifest, string $path): ?array
+    {
+        $screens = $manifest['screens'] ?? [];
+        if (! is_array($screens)) {
+            return null;
+        }
+
+        $target = rtrim($path, '/') ?: '/';
+
+        foreach ($screens as $screen) {
+            if (! is_array($screen)) {
+                continue;
+            }
+            $screenPath = rtrim((string) ($screen['path'] ?? ''), '/') ?: '/';
+            if ($screenPath === $target) {
+                return $screen;
+            }
+        }
+
+        // Fall back to the first screen if nothing matched; avoids a blank
+        // shell when the publisher hasn't configured a root path.
+        foreach ($screens as $screen) {
+            if (is_array($screen)) {
+                return $screen;
+            }
+        }
+
+        return null;
+    }
+
+    // --- Capability triggers (called from native-action blocks) --------
+
+    public function triggerCapability(string $capability, string $id = '', string $url = ''): void
+    {
+        switch ($capability) {
+            case 'browser':
+                if ($url !== '') {
+                    Browser::open($url);
+                }
+                return;
+
+            case 'camera':
+                Camera::getPhoto();
+                return;
+
+            case 'scanner':
+                Scanner::scan();
+                return;
+
+            case 'share':
+                if ($url !== '') {
+                    Share::url($url);
+                }
+                return;
+        }
+    }
+
+    public function triggerAuthGate(string $gateId): void
+    {
+        $this->gates[$gateId] = false;
+        Biometrics::prompt('Unlock ' . $gateId);
+    }
+
+    // --- Native event listeners (async completion callbacks) -----------
+
+    #[OnNative(PhotoTaken::class)]
+    public function onPhotoTaken(string $path, string $mimeType = 'image/jpeg', ?string $id = null): void
+    {
+        $this->lastCallback['camera'] = [
+            'path'     => $path,
+            'mimeType' => $mimeType,
+            'id'       => $id,
+        ];
+    }
+
+    #[OnNative(CodeScanned::class)]
+    public function onCodeScanned(string $data, string $format, ?string $id = null): void
+    {
+        $this->lastCallback['scanner'] = [
+            'data'   => $data,
+            'format' => $format,
+            'id'     => $id,
+        ];
+    }
+
+    #[OnNative(BiometricCompleted::class)]
+    public function onBiometricCompleted(bool $success, ?string $id = null): void
+    {
+        $this->lastCallback['biometrics'] = [
+            'success' => $success,
+            'id'      => $id,
+        ];
+        if ($id !== null && $id !== '') {
+            $this->gates[$id] = $success;
+        }
+    }
+
+    public function render()
+    {
+        return view('livewire.native-edge');
+    }
+}
