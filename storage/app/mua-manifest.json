@@ -2,7 +2,7 @@
     "version": 1,
     "app": {
         "id": 39,
-        "slug": "",
+        "slug": "mustuse-news",
         "name": "MustUse News",
         "app_type": "mobile_android",
         "app_types": [
@@ -46,14 +46,14 @@
     ],
     "deeplink": null,
     "endpoints": {
-        "content": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/\/content",
-        "devices": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/\/devices",
-        "capabilities": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/\/capabilities",
-        "resolve_deeplink": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/\/resolve-deeplink",
-        "auth_complete": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/\/auth\/complete",
-        "auth_status": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/\/auth\/status",
-        "auth_logout": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/\/auth\/logout",
-        "subscriber_state": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/\/subscriber\/state"
+        "content": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/content",
+        "devices": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/devices",
+        "capabilities": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/capabilities",
+        "resolve_deeplink": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/resolve-deeplink",
+        "auth_complete": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/auth\/complete",
+        "auth_status": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/auth\/status",
+        "auth_logout": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/auth\/logout",
+        "subscriber_state": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/subscriber\/state"
     },
     "requiredCapabilities": [],
     "renderers": {

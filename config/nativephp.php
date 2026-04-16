@@ -82,18 +82,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Runtime Mode
+    | Persistent Runtime (v3.1)
     |--------------------------------------------------------------------------
     |
-    | Selects between the `classic` request-per-boot model and the v3.1
-    | `persistent` runtime, which keeps Laravel warm between web-view hits
-    | for 5–30ms response times. We explicitly commit `persistent` so
-    | future nativephp/mobile upgrades that change the default can't
-    | silently regress our latency target.
+    | `persistent` boots Laravel once and reuses the kernel across requests
+    | for 5–30ms response times (vs. 200–300ms for `classic`). Falls back to
+    | classic automatically if persistent boot fails.
+    |
+    | - reset_instances: clear resolved facade instances between dispatches
+    | - gc_between_dispatches: force GC between dispatches (enable if memory
+    |   growth is observed over long-lived sessions)
     |
     */
 
-    'mode' => env('NATIVEPHP_MODE', 'persistent'),
+    'runtime' => [
+        'mode'                 => env('NATIVEPHP_RUNTIME_MODE', 'persistent'),
+        'reset_instances'      => true,
+        'gc_between_dispatches' => false,
+    ],
 
     /*
     |--------------------------------------------------------------------------
