@@ -15,17 +15,47 @@
         "name": "",
         "logo_url": "",
         "primary_color": "#1e1e1e",
-        "accent_color": "#2271b1",
+        "accent_color": "#ba2ca0",
         "privacy_policy_url": "",
         "support_email": "",
         "icon_url": "",
         "splash_url": "",
-        "background_color": "#ffffff"
+        "background_color": "#6e3030"
     },
     "routing": [],
-    "navigation": [],
-    "screen_tree": [],
-    "screens": [],
+    "navigation": [
+        {
+            "screen_id": "home",
+            "label": "Home",
+            "icon": "",
+            "order": 0
+        }
+    ],
+    "screen_tree": [
+        {
+            "screen_id": "home",
+            "title": "Home",
+            "icon": "",
+            "children": []
+        }
+    ],
+    "screens": [
+        {
+            "id": "home",
+            "type": "screen",
+            "title": "Home",
+            "block_tree": [
+                {
+                    "type": "mustuse-apps-pub\/hero",
+                    "attributes": []
+                },
+                {
+                    "type": "mustuse-apps-pub\/native-action",
+                    "attributes": []
+                }
+            ]
+        }
+    ],
     "deeplink": null,
     "endpoints": {
         "content": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/content",
