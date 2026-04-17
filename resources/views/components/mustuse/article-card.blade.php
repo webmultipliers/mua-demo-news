@@ -1,33 +1,49 @@
 @props(['block' => [], 'children' => [], 'gates' => []])
 
 @php
-    $article = $block['article'] ?? [];
-    if (! is_array($article)) {
-        $article = [];
-    }
-    $title   = $article['title']     ?? ($block['title']   ?? '');
-    $excerpt = $article['excerpt']   ?? ($block['excerpt'] ?? '');
-    $url     = $article['url']       ?? ($block['url']     ?? '');
-    $image   = $article['thumbnail'] ?? ($block['image']   ?? null);
-    $cta     = $block['cta_label']   ?? 'Read more';
+    $article = $block['article'] ?? null;
 @endphp
 
-<article class="mua-article-card">
-    @if (is_array($image) && !empty($image['url']))
-        <img class="mua-article-card__image" src="{{ $image['url'] }}" alt="{{ $image['alt'] ?? '' }}" />
-    @endif
-
-    <div class="mua-article-card__body">
-        @if ($title !== '')
-            <h2 class="mua-article-card__title">{{ $title }}</h2>
+@if (is_array($article))
+    <article class="mua-article-card">
+        @if (is_array($article['thumbnail'] ?? null) && !empty($article['thumbnail']['url']))
+            <a class="mua-article-card__image-link" href="{{ $article['url'] ?? '#' }}" wire:navigate>
+                <img class="mua-article-card__image"
+                     src="{{ $article['thumbnail']['url'] }}"
+                     alt="{{ $article['thumbnail']['alt'] ?? '' }}"
+                     loading="lazy" />
+            </a>
         @endif
 
-        @if ($excerpt !== '')
-            <p class="mua-article-card__excerpt">{{ $excerpt }}</p>
-        @endif
+        <div class="mua-article-card__body">
+            @if (!empty($article['categories']))
+                <div class="mua-article-card__categories">
+                    @foreach ($article['categories'] as $cat)
+                        <a class="mua-pill" href="/category/{{ $cat['slug'] }}" wire:navigate>{{ $cat['name'] }}</a>
+                    @endforeach
+                </div>
+            @endif
 
-        @if ($url !== '')
-            <a class="mua-article-card__cta" href="{{ $url }}">{{ $cta }}</a>
-        @endif
-    </div>
-</article>
+            <h2 class="mua-article-card__title">
+                <a href="{{ $article['url'] ?? '#' }}" wire:navigate>{{ $article['title'] ?? '' }}</a>
+            </h2>
+
+            @if (!empty($article['excerpt']))
+                <p class="mua-article-card__excerpt">{{ $article['excerpt'] }}</p>
+            @endif
+
+            <div class="mua-article-card__meta">
+                @if (!empty($article['author']['name']))
+                    <span class="mua-article-card__author">{{ $article['author']['name'] }}</span>
+                @endif
+                @if (!empty($article['date_human']))
+                    <span class="mua-article-card__date">{{ $article['date_human'] }}</span>
+                @endif
+            </div>
+        </div>
+    </article>
+@else
+    <article class="mua-article-card mua-article-card--empty">
+        <p>{{ __('Article unavailable.') }}</p>
+    </article>
+@endif

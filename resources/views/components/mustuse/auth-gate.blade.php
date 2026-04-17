@@ -1,10 +1,16 @@
 @props(['block' => [], 'children' => [], 'gates' => []])
 
 @php
-    $gateId = $block['gate_id'] ?? ($block['id'] ?? 'default');
-    $prompt = $block['prompt'] ?? 'Authenticate to view this content';
-    $isOpen = !empty($gates[$gateId]);
-    $children = is_array($children) ? $children : [];
+    // auth-gate is a container block; children is the inner block tree.
+    // Gate id is stable per screen so `triggerAuthGate($id)` can key the
+    // unlocked state in $gates. We derive it from the gate heading and a
+    // deterministic hash of children so it survives re-renders.
+    $heading     = $block['gateHeading']     ?? 'Authentication required';
+    $description = $block['gateDescription'] ?? '';
+    $ctaLabel    = $block['ctaLabel']        ?? 'Unlock';
+    $gateId      = 'gate-' . substr(md5($heading . json_encode($children)), 0, 8);
+    $isOpen      = !empty($gates[$gateId]);
+    $children    = is_array($children) ? $children : [];
 @endphp
 
 <section class="mua-auth-gate" data-gate-id="{{ $gateId }}" data-open="{{ $isOpen ? 'true' : 'false' }}">
@@ -14,11 +20,14 @@
         @endforeach
     @else
         <div class="mua-auth-gate__prompt">
-            <p class="mua-auth-gate__message">{{ $prompt }}</p>
+            <h3 class="mua-auth-gate__heading">{{ $heading }}</h3>
+            @if ($description !== '')
+                <p class="mua-auth-gate__description">{{ $description }}</p>
+            @endif
             <button type="button"
                     class="mua-auth-gate__unlock"
                     wire:click="triggerAuthGate('{{ $gateId }}')">
-                {{ __('Unlock') }}
+                {{ $ctaLabel }}
             </button>
         </div>
     @endif

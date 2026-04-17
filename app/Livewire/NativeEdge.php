@@ -316,6 +316,13 @@ class NativeEdge extends Component
 
     public function render()
     {
-        return view('livewire.native-edge');
+        // Forward the manifest + title to the layout so the base template
+        // can emit branding CSS variables (primary/accent/background) and
+        // a browser tab title without a second manifest parse.
+        return view('livewire.native-edge')
+            ->layoutData([
+                'title'    => $this->title,
+                'manifest' => $this->manifest,
+            ]);
     }
 }

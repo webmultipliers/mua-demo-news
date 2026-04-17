@@ -47,7 +47,9 @@
             "block_tree": [
                 {
                     "type": "mustuse-apps-pub\/hero",
-                    "attributes": []
+                    "attributes": {
+                        "cta": null
+                    }
                 },
                 {
                     "type": "mustuse-apps-pub\/native-action",
@@ -111,6 +113,42 @@
                     ]
                 }
             ]
+        },
+        "mustuse-apps-pub\/article-grid": {
+            "type": "grid",
+            "columns": "{{ attributes.columns }}",
+            "data_key": "items",
+            "child_template": {
+                "type": "card",
+                "action": {
+                    "type": "navigate",
+                    "target": {
+                        "type": "path",
+                        "value": "{{ item.url }}"
+                    }
+                },
+                "children": [
+                    {
+                        "visible_when": "{{ attributes.showThumbnail }}",
+                        "type": "image",
+                        "src": "{{ item.thumbnail.url }}",
+                        "alt": "{{ item.thumbnail.alt }}",
+                        "aspect_ratio": "4:3",
+                        "fit": "cover"
+                    },
+                    {
+                        "type": "text",
+                        "content": "{{ item.title }}",
+                        "style": "body"
+                    },
+                    {
+                        "visible_when": "{{ attributes.showExcerpt }}",
+                        "type": "text",
+                        "content": "{{ item.excerpt }}",
+                        "style": "caption"
+                    }
+                ]
+            }
         },
         "mustuse-apps-pub\/article-list": {
             "type": "data",
@@ -241,6 +279,68 @@
                 }
             ]
         },
+        "mustuse-apps-pub\/author-card": {
+            "type": "card",
+            "action": {
+                "type": "navigate",
+                "target": {
+                    "type": "path",
+                    "value": "{{ attributes.author.url }}"
+                }
+            },
+            "children": [
+                {
+                    "type": "image",
+                    "src": "{{ attributes.author.avatar.url }}",
+                    "aspect_ratio": "1:1",
+                    "fit": "cover",
+                    "rounded": true
+                },
+                {
+                    "type": "text",
+                    "content": "{{ attributes.author.name }}",
+                    "style": "body_large"
+                },
+                {
+                    "visible_when": "{{ attributes.showBio }}",
+                    "type": "text",
+                    "content": "{{ attributes.author.bio }}",
+                    "style": "body"
+                }
+            ]
+        },
+        "mustuse-apps-pub\/breaking-banner": {
+            "type": "banner",
+            "style": "alert",
+            "label": "{{ attributes.label }}",
+            "headline": "{{ attributes.headline }}",
+            "action": {
+                "type": "navigate",
+                "target": {
+                    "type": "path",
+                    "value": "{{ attributes.linkUrl }}"
+                }
+            }
+        },
+        "mustuse-apps-pub\/category-pills": {
+            "type": "horizontal_scroll",
+            "data_key": "items",
+            "child_template": {
+                "type": "chip",
+                "label": "{{ item.name }}",
+                "active_when": "{{ item.slug }} == {{ attributes.activeSlug }}",
+                "action": {
+                    "type": "navigate",
+                    "target": {
+                        "type": "path",
+                        "value": "{{ item.url }}"
+                    }
+                }
+            }
+        },
+        "mustuse-apps-pub\/divider": {
+            "type": "divider"
+        },
         "mustuse-apps-pub\/hero": {
             "type": "container",
             "background": "{{ attributes.imageUrl.url }}",
@@ -308,6 +408,14 @@
                 }
             ]
         },
+        "mustuse-apps-pub\/list": {
+            "type": "list",
+            "style": "{{ attributes.style }}",
+            "items_source": {
+                "from": "attributes.items",
+                "split": "newline"
+            }
+        },
         "mustuse-apps-pub\/native-action": {
             "type": "stack",
             "direction": "vertical",
@@ -335,6 +443,11 @@
                 }
             ]
         },
+        "mustuse-apps-pub\/quote": {
+            "type": "quote",
+            "text": "{{ attributes.text }}",
+            "cite": "{{ attributes.cite }}"
+        },
         "mustuse-apps-pub\/section-heading": {
             "type": "stack",
             "direction": "vertical",
@@ -349,6 +462,20 @@
                     "type": "divider"
                 }
             ]
+        },
+        "mustuse-apps-pub\/section": {
+            "type": "section",
+            "heading": "{{ attributes.heading }}",
+            "see_all_label": "{{ attributes.seeAllLabel }}",
+            "see_all_target": {
+                "type": "path",
+                "value": "{{ attributes.seeAllUrl }}"
+            },
+            "children": "{{ innerBlocks }}"
+        },
+        "mustuse-apps-pub\/spacer": {
+            "type": "spacer",
+            "size": "{{ attributes.size }}"
         },
         "mustuse-apps-pub\/text": {
             "type": "text",
