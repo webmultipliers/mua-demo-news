@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -17,20 +16,15 @@ class AppServiceProvider extends ServiceProvider
 
     /**
      * Bootstrap any application services.
+     *
+     * The mobile shell is served from http://127.0.0.1 by Bifrost's
+     * embedded PHP runtime, so HTTPS enforcement is never correct here.
+     * A previous version called URL::forceHttps() and crashed at boot
+     * because native.php runs bootstrap() before a `request` binding
+     * exists, constructing UrlGenerator with null and throwing.
      */
     public function boot(): void
     {
-        // Bifrost's `native.php` runs `Kernel->bootstrap()` before a
-        // `request` binding exists — URL::forceHttps() would resolve a
-        // UrlGenerator with $request=null and throw a TypeError. The
-        // in-shell runtime also serves from http://127.0.0.1, so forcing
-        // HTTPS would rewrite every asset URL to something unreachable.
-        if (! $this->app->bound('request') || $this->app->runningInConsole()) {
-            return;
-        }
-
-        if ($this->app->environment('production')) {
-            URL::forceHttps();
-        }
+        //
     }
 }
