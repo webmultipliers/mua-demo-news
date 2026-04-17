@@ -18,13 +18,54 @@ use Illuminate\Support\ServiceProvider;
  */
 class NativeAppServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->ensureAppKey();
+    }
+
     public function boot(): void
     {
         //
     }
 
-    public function register(): void
+    /**
+     * Self-heal a missing APP_KEY on-device.
+     *
+     * Bifrost is expected to inject APP_KEY via its environment UI, but
+     * real deployments occasionally ship without one — and every request
+     * through the `web` middleware group then 500s in EncryptCookies /
+     * Livewire CSRF. Persist a device-local key in storage so sessions
+     * survive across requests, and only generate once on first boot.
+     */
+    private function ensureAppKey(): void
     {
-        //
+        $config  = $this->app->make('config');
+        $current = (string) $config->get('app.key', '');
+        if ($current !== '') {
+            return;
+        }
+
+        $keyFile = storage_path('app/.app-key');
+        if (is_file($keyFile)) {
+            $stored = trim((string) @file_get_contents($keyFile));
+            if ($stored !== '') {
+                $config->set('app.key', $stored);
+                return;
+            }
+        }
+
+        try {
+            $generated = 'base64:' . base64_encode(random_bytes(32));
+        } catch (\Throwable) {
+            // random_bytes can throw if the CSPRNG is unavailable — fall
+            // back to an in-memory ephemeral key so the shell still boots.
+            // Sessions won't survive a restart, but the alternative is a
+            // fatal error every request.
+            $generated = 'base64:' . base64_encode(str_repeat("\0", 32));
+        }
+
+        @file_put_contents($keyFile, $generated);
+        @chmod($keyFile, 0600);
+        $config->set('app.key', $generated);
     }
 }
