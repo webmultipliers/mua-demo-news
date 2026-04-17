@@ -4,5 +4,5 @@
   "features": {
     "ghcr.io/devcontainers/features/node:1": {}
   },
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y php-zip && composer install && npm install"
+  "postCreateCommand": "sudo install-php-extensions zip && composer install && npm install"
 }
