@@ -1,11 +1,12 @@
 {
     "version": 1,
     "app": {
-        "id": 39,
+        "id": 50,
         "slug": "mustuse-news",
         "name": "MustUse News",
-        "app_type": "mobile_android",
+        "app_type": "mobile_ios",
         "app_types": [
+            "mobile_ios",
             "mobile_android"
         ]
     },
@@ -23,31 +24,11 @@
     },
     "routing": [],
     "navigation": [],
-    "screens": [
-        {
-            "id": "home",
-            "type": "screen",
-            "title": "Home",
-            "block_tree": [
-                {
-                    "type": "mustuse-apps-pub\/hero",
-                    "attributes": []
-                },
-                {
-                    "type": "mustuse-apps-pub\/article-list",
-                    "attributes": []
-                },
-                {
-                    "type": "mustuse-apps-pub\/native-action",
-                    "attributes": []
-                }
-            ]
-        }
-    ],
+    "screen_tree": [],
+    "screens": [],
     "deeplink": null,
     "endpoints": {
         "content": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/content",
-        "devices": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/devices",
         "capabilities": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/capabilities",
         "resolve_deeplink": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/resolve-deeplink",
         "auth_complete": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/auth\/complete",
@@ -371,16 +352,6 @@
                     "type": "text",
                     "content": "{{ attributes.caption }}",
                     "style": "caption"
-                }
-            ]
-        },
-        "mustuse-apps-pub-campaign\/rich-content": {
-            "type": "stack",
-            "direction": "vertical",
-            "spacing": 0,
-            "children": [
-                {
-                    "type": "inner_blocks"
                 }
             ]
         }
