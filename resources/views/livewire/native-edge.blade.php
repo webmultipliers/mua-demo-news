@@ -6,13 +6,51 @@
         - attributes associative array, block-specific
         - children   or innerBlocks, recursive block tree for containers
 
-    We strip the "mustuse-apps-pub/" prefix and dispatch to a Blade
-    component of the same slug (hero → <x-hero>). Unknown block types
-    are silently skipped so a pub-side addition doesn't break older
-    shells — missing components just render nothing.
+    Navigation layers:
+        top-bar     — platform-conditional title; hamburger opens side-nav
+        side-nav    — drawer listing every screen in the manifest
+        bottom-nav  — 2–4 tabs declared by the publisher
+
+    The hamburger icon on top-bar is only rendered when we actually have
+    a side-nav to show; otherwise it opens an empty drawer the user can't
+    close. iOS convention hides the top-bar title by default.
 --}}
 <div>
-    <native:top-bar :title="$title ?: 'App'" />
+    @php
+        $isAndroid      = \Native\Mobile\Facades\System::isAndroid();
+        $displayTitle   = $isAndroid ? ($title ?: 'App') : '';
+        $hasDrawer      = ! empty($drawerScreens);
+    @endphp
+
+    <native:top-bar
+        title="{{ $displayTitle }}"
+        show-navigation-icon="{{ $hasDrawer ? 'true' : 'false' }}"
+    >
+    </native:top-bar>
+
+    @if ($hasDrawer)
+        <native:side-nav :gestures_enabled="true">
+            <native:side-nav-header
+                title="{{ $title ?: 'App' }}"
+                subtitle="{{ $manifest['branding']['tagline'] ?? '' }}"
+                :show-close-button="true"
+                pinned
+            />
+            @foreach ($drawerScreens as $entry)
+                @php
+                    $entryPath = rtrim((string) ($entry['path'] ?? '/'), '/') ?: '/';
+                    $active    = $entryPath === rtrim($path, '/');
+                @endphp
+                <native:side-nav-item
+                    id="{{ $entry['id'] ?? $entryPath }}"
+                    icon="{{ $entry['icon'] ?? 'document' }}"
+                    label="{{ $entry['title'] ?? $entry['label'] ?? '' }}"
+                    url="{{ $entry['path'] ?? '/' }}"
+                    :active="$active"
+                />
+            @endforeach
+        </native:side-nav>
+    @endif
 
     @if ($screen)
         <main class="mua-screen" data-screen-id="{{ $screen['id'] ?? '' }}">

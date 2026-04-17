@@ -1,0 +1,410 @@
+{
+    "version": 1,
+    "app": {
+        "id": 50,
+        "slug": "mustuse-news",
+        "name": "MustUse News",
+        "app_type": "mobile_ios",
+        "app_types": [
+            "mobile_ios",
+            "mobile_android"
+        ]
+    },
+    "assets": [],
+    "branding": {
+        "name": "",
+        "logo_url": "",
+        "primary_color": "#1e1e1e",
+        "accent_color": "#ba2ca0",
+        "privacy_policy_url": "",
+        "support_email": "",
+        "icon_url": "",
+        "splash_url": "",
+        "background_color": "#6e3030"
+    },
+    "routing": [],
+    "navigation": [
+        {
+            "screen_id": "home",
+            "label": "Home",
+            "icon": "",
+            "order": 0
+        }
+    ],
+    "screen_tree": [
+        {
+            "screen_id": "home",
+            "title": "Home",
+            "icon": "",
+            "children": []
+        }
+    ],
+    "screens": [
+        {
+            "id": "home",
+            "type": "screen",
+            "title": "Home",
+            "block_tree": [
+                {
+                    "type": "mustuse-apps-pub\/hero",
+                    "attributes": []
+                },
+                {
+                    "type": "mustuse-apps-pub\/native-action",
+                    "attributes": []
+                }
+            ]
+        }
+    ],
+    "deeplink": null,
+    "endpoints": {
+        "content": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/content",
+        "capabilities": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/capabilities",
+        "resolve_deeplink": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/resolve-deeplink",
+        "auth_complete": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/auth\/complete",
+        "auth_status": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/auth\/status",
+        "auth_logout": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/auth\/logout",
+        "subscriber_state": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/subscriber\/state"
+    },
+    "requiredCapabilities": [],
+    "renderers": {
+        "mustuse-apps-pub\/article-card": {
+            "type": "data",
+            "endpoint": "\/wp-json\/mustuse-apps-pub\/v1\/apps\/{app_slug}\/content",
+            "params": {
+                "post_id": "{{ attributes.postId }}",
+                "per_page": 1
+            },
+            "bind_to": "article",
+            "children": [
+                {
+                    "type": "container",
+                    "padding": 16,
+                    "border_radius": 8,
+                    "background": "#ffffff",
+                    "children": [
+                        {
+                            "type": "stack",
+                            "direction": "vertical",
+                            "spacing": 12,
+                            "children": [
+                                {
+                                    "visible_when": "{{ attributes.showThumbnail }}",
+                                    "type": "image",
+                                    "src": "{{ article.featured_image }}",
+                                    "aspect_ratio": "16:9",
+                                    "fit": "cover"
+                                },
+                                {
+                                    "type": "text",
+                                    "content": "{{ article.title }}",
+                                    "style": "heading_3"
+                                },
+                                {
+                                    "visible_when": "{{ attributes.showExcerpt }}",
+                                    "type": "text",
+                                    "content": "{{ article.excerpt }}",
+                                    "style": "body"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "mustuse-apps-pub\/article-list": {
+            "type": "data",
+            "endpoint": "\/wp-json\/mustuse-apps-pub\/v1\/apps\/{app_slug}\/content",
+            "params": {
+                "post_type": "{{ attributes.postType }}",
+                "per_page": "{{ attributes.count }}",
+                "category": "{{ attributes.category }}"
+            },
+            "bind_to": "articles",
+            "children": [
+                {
+                    "type": "stack",
+                    "direction": "vertical",
+                    "spacing": 0,
+                    "children": [
+                        {
+                            "type": "foreach",
+                            "items": "{{ articles.items }}",
+                            "as": "post",
+                            "render": {
+                                "type": "container",
+                                "padding": {
+                                    "top": 12,
+                                    "bottom": 12,
+                                    "left": 16,
+                                    "right": 16
+                                },
+                                "children": [
+                                    {
+                                        "type": "stack",
+                                        "direction": "horizontal",
+                                        "spacing": 12,
+                                        "align": "center",
+                                        "children": [
+                                            {
+                                                "visible_when": "{{ attributes.showThumbnail }}",
+                                                "type": "image",
+                                                "src": "{{ post.featured_image }}",
+                                                "aspect_ratio": "1:1",
+                                                "fit": "cover"
+                                            },
+                                            {
+                                                "type": "stack",
+                                                "direction": "vertical",
+                                                "spacing": 4,
+                                                "children": [
+                                                    {
+                                                        "type": "text",
+                                                        "content": "{{ post.title }}",
+                                                        "style": "body_large"
+                                                    },
+                                                    {
+                                                        "visible_when": "{{ attributes.showExcerpt }}",
+                                                        "type": "text",
+                                                        "content": "{{ post.excerpt }}",
+                                                        "style": "caption"
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        "mustuse-apps-pub\/auth-gate": {
+            "type": "stack",
+            "direction": "vertical",
+            "spacing": 0,
+            "children": [
+                {
+                    "type": "container",
+                    "padding": {
+                        "top": 32,
+                        "bottom": 32,
+                        "left": 24,
+                        "right": 24
+                    },
+                    "children": [
+                        {
+                            "type": "stack",
+                            "direction": "vertical",
+                            "spacing": 16,
+                            "align": "center",
+                            "children": [
+                                {
+                                    "type": "icon",
+                                    "name": "lock",
+                                    "size": 32,
+                                    "color": "#646970"
+                                },
+                                {
+                                    "visible_when": "{{ attributes.gateHeading }}",
+                                    "type": "text",
+                                    "content": "{{ attributes.gateHeading }}",
+                                    "style": "heading_3"
+                                },
+                                {
+                                    "visible_when": "{{ attributes.gateDescription }}",
+                                    "type": "text",
+                                    "content": "{{ attributes.gateDescription }}",
+                                    "style": "body"
+                                },
+                                {
+                                    "type": "button",
+                                    "label": "{{ attributes.ctaLabel }}",
+                                    "style": "primary",
+                                    "action": {
+                                        "type": "capability",
+                                        "capability": "biometrics",
+                                        "callback": {
+                                            "type": "state",
+                                            "slot": "_auth_gate_unlocked"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "visible_when": "{{ state._auth_gate_unlocked }}",
+                    "type": "inner_blocks"
+                }
+            ]
+        },
+        "mustuse-apps-pub\/hero": {
+            "type": "container",
+            "background": "{{ attributes.imageUrl.url }}",
+            "background_mode": "cover",
+            "padding": {
+                "top": 64,
+                "bottom": 48,
+                "left": 24,
+                "right": 24
+            },
+            "children": [
+                {
+                    "type": "stack",
+                    "direction": "vertical",
+                    "spacing": 12,
+                    "align": "start",
+                    "children": [
+                        {
+                            "visible_when": "{{ attributes.heading }}",
+                            "type": "text",
+                            "content": "{{ attributes.heading }}",
+                            "style": "heading_1"
+                        },
+                        {
+                            "visible_when": "{{ attributes.subheading }}",
+                            "type": "text",
+                            "content": "{{ attributes.subheading }}",
+                            "style": "body_large"
+                        },
+                        {
+                            "visible_when": "{{ attributes.ctaLabel }}",
+                            "type": "button",
+                            "label": "{{ attributes.ctaLabel }}",
+                            "style": "primary",
+                            "action": {
+                                "type": "navigate",
+                                "target": {
+                                    "type": "{{ attributes.ctaTargetType }}",
+                                    "value": "{{ attributes.ctaTargetValue }}"
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        "mustuse-apps-pub\/image": {
+            "type": "stack",
+            "direction": "vertical",
+            "spacing": 8,
+            "children": [
+                {
+                    "type": "image",
+                    "src": "{{ attributes.image.url }}",
+                    "aspect_ratio": "16:9",
+                    "fit": "cover",
+                    "caption": "{{ attributes.caption }}",
+                    "alt": "{{ attributes.alt }}"
+                },
+                {
+                    "visible_when": "{{ attributes.caption }}",
+                    "type": "text",
+                    "content": "{{ attributes.caption }}",
+                    "style": "caption"
+                }
+            ]
+        },
+        "mustuse-apps-pub\/native-action": {
+            "type": "stack",
+            "direction": "vertical",
+            "spacing": 12,
+            "children": [
+                {
+                    "type": "button",
+                    "label": "{{ attributes.label }}",
+                    "style": "primary",
+                    "action": {
+                        "type": "capability",
+                        "capability": "{{ attributes.capability }}",
+                        "callback": {
+                            "type": "{{ attributes.callbackType }}",
+                            "slot": "{{ attributes.callbackSlot }}",
+                            "url": "{{ attributes.callbackUrl }}"
+                        }
+                    }
+                },
+                {
+                    "visible_when": "{{ attributes.fallbackText }}",
+                    "type": "text",
+                    "content": "{{ attributes.fallbackText }}",
+                    "style": "caption"
+                }
+            ]
+        },
+        "mustuse-apps-pub\/section-heading": {
+            "type": "stack",
+            "direction": "vertical",
+            "spacing": 8,
+            "children": [
+                {
+                    "type": "text",
+                    "content": "{{ attributes.text }}",
+                    "style": "{{ attributes.level }}"
+                },
+                {
+                    "type": "divider"
+                }
+            ]
+        },
+        "mustuse-apps-pub\/text": {
+            "type": "text",
+            "content": "{{ attributes.content }}",
+            "content_format": "html",
+            "style": "body",
+            "allowed_tags": [
+                "p",
+                "br",
+                "strong",
+                "em",
+                "a",
+                "ul",
+                "ol",
+                "li",
+                "code"
+            ]
+        },
+        "mustuse-apps-pub\/video": {
+            "type": "stack",
+            "direction": "vertical",
+            "spacing": 8,
+            "children": [
+                {
+                    "type": "video_player",
+                    "src": "{{ attributes.videoUrl }}",
+                    "poster": "{{ attributes.posterImage.url }}"
+                },
+                {
+                    "visible_when": "{{ attributes.caption }}",
+                    "type": "text",
+                    "content": "{{ attributes.caption }}",
+                    "style": "caption"
+                }
+            ]
+        }
+    },
+    "extensions": [],
+    "cache_policy": {
+        "manifest": {
+            "ttl_seconds": 300,
+            "strategy": "stale-while-revalidate"
+        },
+        "content": {
+            "ttl_seconds": 900,
+            "strategy": "stale-while-revalidate"
+        },
+        "assets": {
+            "ttl_seconds": 86400,
+            "strategy": "cache-first"
+        }
+    },
+    "cache_invalidations": {
+        "manifest": "0",
+        "content": "0",
+        "assets": "0"
+    },
+    "subscriber_state": null
+}
