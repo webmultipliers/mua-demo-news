@@ -22,11 +22,29 @@
         "splash_url": "",
         "background_color": "#6e3030"
     },
-    "routing": [],
+    "routing": [
+        {
+            "screen_id": "news",
+            "type": "standard",
+            "post_type": "post",
+            "taxonomy": "",
+            "term_id": 0,
+            "custom_id": "",
+            "query_args": {
+                "post_type": "post"
+            }
+        }
+    ],
     "navigation": [
         {
             "screen_id": "home",
             "label": "Home",
+            "icon": "",
+            "order": 0
+        },
+        {
+            "screen_id": "news",
+            "label": "News",
             "icon": "",
             "order": 0
         }
@@ -35,6 +53,12 @@
         {
             "screen_id": "home",
             "title": "Home",
+            "icon": "",
+            "children": []
+        },
+        {
+            "screen_id": "news",
+            "title": "News",
             "icon": "",
             "children": []
         }
@@ -46,14 +70,50 @@
             "title": "Home",
             "block_tree": [
                 {
-                    "type": "mustuse-apps-pub\/hero",
+                    "type": "core\/paragraph",
+                    "attributes": []
+                }
+            ]
+        },
+        {
+            "id": "news",
+            "type": "screen",
+            "title": "News",
+            "block_tree": [
+                {
+                    "type": "core\/heading",
                     "attributes": {
-                        "cta": null
+                        "level": 1
                     }
                 },
                 {
-                    "type": "mustuse-apps-pub\/native-action",
-                    "attributes": []
+                    "type": "mustuse-apps-pub\/article-list",
+                    "attributes": {
+                        "items": [
+                            {
+                                "id": 60,
+                                "title": "A post title.",
+                                "slug": "a-post-title",
+                                "url": "\/article\/a-post-title",
+                                "excerpt": "It&#8217;s just a post.",
+                                "date": "2026-04-17T18:31:04-07:00",
+                                "date_human": "7 hours ago",
+                                "thumbnail": null,
+                                "author": {
+                                    "id": 1,
+                                    "name": "goporicasu4363",
+                                    "url": "\/author\/goporicasu4363"
+                                },
+                                "categories": [
+                                    {
+                                        "id": 1,
+                                        "name": "Uncategorized",
+                                        "slug": "uncategorized"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
                 }
             ]
         }
