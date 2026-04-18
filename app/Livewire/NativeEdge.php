@@ -75,10 +75,8 @@ class NativeEdge extends Component
 
     public function mount(string $any = ''): void
     {
-        // Preserve the full request URI (path + query string) because
-        // /search?q=foo needs the query to reach DeeplinkResolver. The
-        // Livewire router only forwards `$any` from the path regex, so
-        // anything behind `?` would otherwise be lost.
+        // Preserve the query string — /search?q=… needs it for the
+        // DeeplinkResolver; the Livewire router only forwards the path.
         $query      = \Illuminate\Support\Facades\Request::getQueryString();
         $basePath   = '/' . ltrim($any, '/');
         $this->path = $query !== null && $query !== '' ? $basePath . '?' . $query : $basePath;
@@ -137,11 +135,9 @@ class NativeEdge extends Component
         $this->drawerScreens  = $this->resolveDrawerScreens($manifest);
         $this->screen         = $this->resolveScreen($manifest, $this->path);
 
-        // If the path doesn't exact-match a screen, ask the pub to resolve
-        // it — handles /article/{slug}, /category/{slug}, /author/{slug},
-        // and any publisher-defined `_mua_deeplink_path` templates. The
-        // pub returns a (screen_id, context) pair; we swap in that screen
-        // and surface the context so post-* blocks can read it.
+        // Fall back to the pub for anything that isn't an exact-match
+        // screen (e.g. /article/{slug}). The resolver returns
+        // {screen_id, context} and we swap the matching template screen.
         if (! $this->screen) {
             $resolved = $this->resolveDeeplink($this->path);
             if ($resolved !== null) {
@@ -151,9 +147,6 @@ class NativeEdge extends Component
             }
         }
 
-        // If the resolved route carries a post context, log the visit.
-        // Fire-and-forget: failures don't surface to the user; the next
-        // online tick retries implicitly via PubClient's SWR cache.
         $contextPostId = (int) \Illuminate\Support\Arr::get($this->context, 'post.id', 0);
         if ($contextPostId > 0) {
             try {
@@ -172,10 +165,9 @@ class NativeEdge extends Component
     }
 
     /**
-     * POST the current path to the pub's /resolve-deeplink endpoint.
-     * Returns null on any failure; callers fall through to the "no screen
-     * configured" message so a momentary network blip doesn't look like
-     * the app is broken.
+     * Null on any failure — callers fall through to the "no screen
+     * configured" message so a transient network blip reads as a benign
+     * missing-route rather than an error dialog.
      *
      * @return array<string, mixed>|null
      */
@@ -313,7 +305,7 @@ class NativeEdge extends Component
     {
         $storageManifest = storage_path('app/mua-manifest.json');
         if (is_file($storageManifest)) {
-            return; // Already installed.
+            return;
         }
         $storageDir = dirname($storageManifest);
         if (! is_dir($storageDir)) {
@@ -336,9 +328,7 @@ class NativeEdge extends Component
             return null;
         }
 
-        // Strip query string for path matching — `/about?ref=abc` should
-        // still match a screen whose path is `/about`. Query strings are
-        // only relevant for deeplink resolution (/search?q=...).
+        // Match on path only — /about?ref=abc should still find /about.
         $pathOnly = strtok($path, '?');
         $target   = rtrim((string) $pathOnly, '/') ?: '/';
 
@@ -397,15 +387,12 @@ class NativeEdge extends Component
     }
 
     /**
-     * Pull-to-refresh handler. Broadcasts `block-refresh` so every nested
-     * <livewire:dynamic-block> on this screen drops its PubClient cache
-     * entry and re-fetches. Wired to the native gesture in the blade layer
-     * (or to a manual refresh button until the gesture lands).
+     * Fired by pull-to-refresh. Every DynamicBlock and QueryLoop on the
+     * screen listens for `block-refresh` and drops its PubClient cache
+     * entry in response.
      */
     public function triggerRefresh(): void
     {
-        // Laravel Livewire 3 broadcast: fires on every mounted component
-        // that declares `#[On('block-refresh')]`.
         $this->dispatch('block-refresh');
     }
 
@@ -445,18 +432,12 @@ class NativeEdge extends Component
 
     public function render()
     {
-        // Collect only the CSS/JS for blocks actually present on the
-        // currently-rendering screen. BlockAssetCollector reads per-block
-        // assets that BuildAssembler projected from Blockstudio's _dist/
-        // at publish time, so the bytes inlined below are the same bytes
-        // the WP editor + public site use.
         $collector = new \App\Support\BlockAssetCollector(
             $this->screen['block_tree'] ?? null,
         );
 
-        // When the route resolved a detail context (post / term / author),
-        // prefer that object's title over the manifest's branding name so
-        // the tab / status bar reflects what the user is actually reading.
+        // Use the resolved post title for the window title on detail
+        // screens so the status bar reflects what's being read.
         $effectiveTitle = (string) (data_get($this->context, 'post.title') ?: $this->title);
 
         return view('livewire.native-edge')

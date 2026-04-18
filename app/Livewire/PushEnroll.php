@@ -11,16 +11,10 @@ use Native\Mobile\Events\PushNotifications\TokenGenerated;
 use Native\Mobile\Facades\PushNotifications;
 
 /**
- * Push-notification enrollment prompt block.
+ * Push-enrollment opt-in prompt.
  *
- * Three states:
- *   idle      — user hasn't enrolled; shows prompt + enable button.
- *   pending   — enrollment in flight (OS permission prompt → token callback).
- *   enrolled  — we received a token and synced it to the pub.
- *
- * The block is intentionally quiet — no hard "subscribe now" interstitial.
- * Publishers drop it where they want opt-in to happen, typically on a
- * settings or welcome screen.
+ * State machine: idle → pending (OS permission prompt) → enrolled | declined.
+ * On token receipt, syncs to the pub via Persistence::enrollPush.
  */
 class PushEnroll extends Component
 {
@@ -42,8 +36,6 @@ class PushEnroll extends Component
             return;
         }
         $this->state = 'pending';
-        // NativePHP bridges into OS push registration; token arrives via
-        // the #[OnNative(TokenGenerated::class)] handler below.
         PushNotifications::enroll();
     }
 

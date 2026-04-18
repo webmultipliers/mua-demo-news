@@ -58,7 +58,23 @@
             "title": "Home",
             "block_tree": [
                 {
+                    "type": "mustuse-apps-pub\/breaking-banner",
+                    "attributes": {
+                        "blockstudio": {
+                            "attributes": {
+                                "label": "Breaking",
+                                "headline": "Whoa",
+                                "linkUrl": ""
+                            }
+                        }
+                    }
+                },
+                {
                     "type": "core\/paragraph",
+                    "attributes": []
+                },
+                {
+                    "type": "mustuse-apps-pub\/read-history-list",
                     "attributes": []
                 }
             ]
@@ -208,34 +224,9 @@
             ]
         },
         "mustuse-apps-pub\/author-card": {
-            "type": "card",
-            "action": {
-                "type": "navigate",
-                "target": {
-                    "type": "path",
-                    "value": "{{ attributes.author.url }}"
-                }
-            },
-            "children": [
-                {
-                    "type": "image",
-                    "src": "{{ attributes.author.avatar.url }}",
-                    "aspect_ratio": "1:1",
-                    "fit": "cover",
-                    "rounded": true
-                },
-                {
-                    "type": "text",
-                    "content": "{{ attributes.author.name }}",
-                    "style": "body_large"
-                },
-                {
-                    "visible_when": "{{ attributes.showBio }}",
-                    "type": "text",
-                    "content": "{{ attributes.author.bio }}",
-                    "style": "body"
-                }
-            ]
+            "version": 2,
+            "description": "Renders the current context author. On \/author\/{slug} screens reads context.author; on article detail screens falls back to context.post.author.",
+            "consumes_context": "author"
         },
         "mustuse-apps-pub\/bookmark-toggle": {
             "version": 2,

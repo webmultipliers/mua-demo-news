@@ -8,15 +8,10 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
- * Search input block.
- *
- * Keeps state for the input box between renders and submits to the
- * search-results screen via a plain `wire:navigate` redirect. The search
- * screen itself is whatever screen the pub resolves `/search` to in its
- * DeeplinkResolver (defaults to screen_id=`search-results`).
- *
- * `#[Url]` binds `$query` to the browser URL's `?q=...` so the input
- * seeds correctly on back/forward navigation without a round-trip.
+ * Search input. On submit, navigates to /search?q={query}; the pub's
+ * DeeplinkResolver returns the search-results screen + context. `#[Url]`
+ * mirrors `$query` to `?q=...` so back/forward navigation reseeds the
+ * input for free.
  */
 class SearchBox extends Component
 {
@@ -37,11 +32,6 @@ class SearchBox extends Component
         }
     }
 
-    /**
-     * Submit handler: normalize whitespace and redirect to /search?q=…
-     * via Livewire's client-side navigate so the rest of the shell state
-     * (layout, bottom-nav, etc.) doesn't flash out.
-     */
     public function submit(): mixed
     {
         $q = trim($this->query);

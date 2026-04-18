@@ -9,27 +9,13 @@ use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
- * WordPress-theme-style Query Loop on the mobile shell.
+ * Query Loop container — fetches N posts once via PubClient and
+ * iterates a `post-template` child per item.
  *
- * One Livewire instance per loop — *not per item* — so a 10-item grid
- * with five context blocks per card is still 1 Livewire component, not
- * 50. Children are rendered as plain Blade with `$context` carried in,
- * which keeps per-item rendering O(ms), not O(wire-request).
- *
- * Mount flow:
- *   1. Parse the query-loop's native.json `dataSource` template against
- *      the configured attributes (postType, count, category, ...).
- *   2. Fetch via PubClient — SWR cache, 5-minute default TTL.
- *   3. Surface `items` to the blade view; iteration happens there.
- *
- * Inner-block split:
- *   Children of `<query-loop>` fall into two buckets:
- *     a. `mustuse-apps-pub/post-template` → the iteration body; its
- *        own innerBlocks repeat once per item with context.post set.
- *     b. everything else → "chrome" (header, see-all link, footer).
- *        Rendered once before/after the loop body, WITHOUT per-item
- *        context, so a section-heading above the list doesn't try to
- *        read post.title.
+ * One Livewire instance per loop, not per item. Children inside the
+ * post-template render as plain Blade with `$context.post` set for the
+ * current iteration. Siblings of post-template (header / footer chrome)
+ * render once without per-item context.
  */
 class QueryLoop extends Component
 {
@@ -97,14 +83,10 @@ class QueryLoop extends Component
     }
 
     /**
-     * Split the children into:
-     *   postTemplate:   the single post-template block (its innerBlocks
-     *                   repeat once per item).
-     *   chrome:         every sibling block that renders once (header /
-     *                   see-all link / footer). Authors rarely add
-     *                   chrome today but the contract is there so a
-     *                   section-heading above a loop works without
-     *                   trying to read post.title.
+     * Separate the single post-template (iteration body) from chrome
+     * siblings (header / see-all link / footer). Chrome renders once
+     * without per-item context so a section-heading above a loop doesn't
+     * try to read post.title.
      *
      * @return array{postTemplate: ?array<string,mixed>, chromeBefore: list<array<string,mixed>>, chromeAfter: list<array<string,mixed>>}
      */
@@ -140,18 +122,15 @@ class QueryLoop extends Component
     }
 
     /**
-     * Build a per-item context object. Shape matches the pub-side
-     * ContextBuilder::postContext() output so post-title et al. read
-     * the same field path they do on detail screens.
+     * Per-item context: carries the parent screen's context through
+     * (so `search.query` etc. stay visible inside loops) and scopes
+     * `post` to the current iteration.
      *
      * @param array<string, mixed> $item
      * @return array<string, mixed>
      */
     public function contextForItem(array $item): array
     {
-        // Start with the parent context (so screen-level fields like
-        // `search.query` propagate through loops) then scope `post` to
-        // the current iteration. A nested loop future can stack this.
         $base = \is_array($this->context) ? $this->context : [];
         $base['post'] = $item;
         return $base;

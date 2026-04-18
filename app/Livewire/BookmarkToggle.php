@@ -9,13 +9,9 @@ use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
- * Toggle button that bookmarks the current post. Lives inside a detail
- * screen and reads `context.post.id` from the parent. Persistence is
- * local-first (SecureStorage) with an async pub sync via
- * Persistence::addBookmark() / removeBookmark().
- *
- * Fires `bookmarks-changed` after every mutation so sibling blocks
- * (e.g. a bookmark counter on the same screen) can re-render.
+ * Toggles a bookmark for the current context post. Dispatches
+ * `bookmarks-changed` after each mutation so sibling blocks can
+ * re-render in lockstep.
  */
 class BookmarkToggle extends Component
 {

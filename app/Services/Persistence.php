@@ -11,18 +11,11 @@ use Illuminate\Support\Facades\Log;
 use Native\Mobile\Facades\SecureStorage;
 
 /**
- * Device-scoped personalization (bookmarks, read history, push token)
- * with a local-first, pub-sync'd cache.
+ * Device-scoped persistence (bookmarks, history, push token).
  *
- * Every call is **local-first**: the on-device SecureStorage copy is the
- * source of truth for UI rendering. When a mutation happens we update
- * the local copy synchronously, then fire an async sync to the pub's
- * /bookmarks, /history, or /push/enroll endpoint. If the network fails
- * the local copy is unaffected and we'll retry on the next online tick
- * (through PubClient's SWR cache).
- *
- * Device id is generated once and kept in SecureStorage under a stable
- * key. We hand it to the pub via X-MUA-Device-Id on every request.
+ * Local-first — reads hit Laravel Cache immediately, then sync to the
+ * pub in the background. Device id is generated once per install in
+ * SecureStorage and carried on every request via X-MUA-Device-Id.
  */
 class Persistence
 {
@@ -37,13 +30,10 @@ class Persistence
         if (\is_string($stored) && $stored !== '') {
             return $stored;
         }
-        // First-boot generation. 32 bytes of entropy → 43 base64url chars;
-        // keyspace is >>> than the pub's hashing window so collisions are
-        // a non-concern.
         try {
             $bytes = \random_bytes(32);
         } catch (\Throwable $e) {
-            // CSPRNG unavailable (rare) — degrade to a timestamp-seeded id.
+            // CSPRNG unavailable — degrade to a timestamp-seeded id.
             // Doesn't need to be adversarial-safe, just unique per install.
             $bytes = \hash('sha256', (string) \microtime(true) . \uniqid('', true), true);
         }
@@ -98,18 +88,12 @@ class Persistence
         return false;
     }
 
-    /**
-     * Record a visit — called by NativeEdge when an article detail screen
-     * mounts. Local-first: we don't block on the pub's response because
-     * failure is recoverable (history sync is advisory, not critical).
-     */
     public function recordVisit(int $postId, string $postType = 'post'): void
     {
         if ($postId <= 0) {
             return;
         }
         $this->mutatePub('history', 'POST', ['post_id' => $postId, 'post_type' => $postType]);
-        // Invalidate cache so the next history read goes through to the pub.
         Cache::forget(self::HISTORY_CACHE);
     }
 
@@ -133,9 +117,8 @@ class Persistence
     }
 
     /**
-     * Enroll the current device for push. Called once on first launch
-     * after NativePHP's PushNotifications::enroll() returns a token.
-     * Token is cached locally so we don't re-enroll on every boot.
+     * Token is cached against `PUSH_TOKEN_CACHE` so the shell skips
+     * re-enrollment on every boot; only new / rotated tokens hit the pub.
      */
     public function enrollPush(string $token, string $platform): void
     {
