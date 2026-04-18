@@ -1,13 +1,1 @@
-.mua-list {
-  padding-left: 22px;
-  margin: 0 0 var(--mua-space-md);
-}
-.mua-list--bullet {
-  list-style: disc;
-}
-.mua-list--numbered {
-  list-style: decimal;
-}
-.mua-list li {
-  margin-bottom: 6px;
-}
+.mua-list{padding-left:22px;margin:0 0 var(--mua-space-md)}.mua-list--bullet{list-style:disc}.mua-list--numbered{list-style:decimal}.mua-list li{margin-bottom:6px}

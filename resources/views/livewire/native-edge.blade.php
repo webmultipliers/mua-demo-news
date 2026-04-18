@@ -1,19 +1,8 @@
 {{--
-    Manifest-driven screen renderer.
-
-    Each block in $screen['block_tree'] carries:
-        - type       e.g. "mustuse-apps-pub/hero"
-        - attributes associative array, block-specific
-        - children   or innerBlocks, recursive block tree for containers
-
-    Navigation layers:
-        top-bar     — platform-conditional title; hamburger opens side-nav
-        side-nav    — drawer listing every screen in the manifest
-        bottom-nav  — 2–4 tabs declared by the publisher
-
-    The hamburger icon on top-bar is only rendered when we actually have
-    a side-nav to show; otherwise it opens an empty drawer the user can't
-    close. iOS convention hides the top-bar title by default.
+    Top-bar shows its hamburger only when a side-nav exists; otherwise
+    the user taps it and gets an empty drawer they can't close. iOS
+    hides the top-bar title by convention, so we only populate it on
+    Android.
 --}}
 <div>
     @php
@@ -53,14 +42,7 @@
     @endif
 
     @if ($screen)
-        <main
-            class="mua-screen"
-            data-screen-id="{{ $screen['id'] ?? '' }}"
-            wire:click.self="$set('_ignore', null)"
-        >
-            {{-- Pull-to-refresh: a tap on the refresh button fires
-                 `triggerRefresh()` which broadcasts `block-refresh` to
-                 every <livewire:dynamic-block> on the screen. --}}
+        <main class="mua-screen" data-screen-id="{{ $screen['id'] ?? '' }}">
             @foreach (($screen['block_tree'] ?? []) as $block)
                 @include('livewire.partials.dispatch-block', [
                     'block'   => $block,

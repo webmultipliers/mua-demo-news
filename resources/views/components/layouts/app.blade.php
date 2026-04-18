@@ -1,21 +1,10 @@
 {{--
-    Default layout for full-page Livewire components (NativeEdge, etc).
-
-    Livewire 3 resolves `components.layouts.app` when a route points directly
-    at a Component class (see `routes/web.php`), so this file MUST exist.
-
-    Asset strategy (three stacked layers, each optional):
-      1. Shell base — tokens + body reset + layout frame from
-         resources/css/app.css. Always emitted.
-      2. Branding vars — primary/accent/background CSS custom properties
-         from the manifest, so block SCSS inherits the publisher's palette.
-      3. Per-block CSS — the BlockAssetCollector reads only the CSS for
-         blocks actually present on the current screen, sourced from
-         Blockstudio's compiled _dist/ (mirrored into public/blocks/ by
-         BuildAssembler). Same bytes that render in the WP editor + site.
-
-    No global "shell.css" with every block's rules baked in. A screen with
-    just a hero + article-list only inlines hero.css + article-list.css.
+    Inlines three stacked style layers: the shell's base CSS, the
+    publisher's branding variables from the manifest, and the per-block
+    CSS collected by BlockAssetCollector for blocks actually present on
+    this screen. `inlineBlockCss` / `inlineBlockJs` are set by
+    NativeEdge::render() via layoutData(); default-empty for any other
+    layout consumer.
 --}}
 @php
     $hasViteManifest = file_exists(public_path('build/manifest.json'))
@@ -32,8 +21,6 @@
         '--mua-color-background' => $branding['background_color'] ?? null,
     ]);
 
-    // Per-block CSS/JS for the current screen — populated by NativeEdge::render()
-    // via layoutData(); undefined on non-NativeEdge layouts so guard with ??.
     $blockCss = $inlineBlockCss ?? '';
     $blockJs  = $inlineBlockJs  ?? '';
 @endphp

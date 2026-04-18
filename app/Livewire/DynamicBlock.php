@@ -10,15 +10,9 @@ use Livewire\Component;
 
 /**
  * Runtime wrapper for any block whose `native.json` declares a
- * `dataSource`. Fetches once on mount, re-renders the block's regular
- * mobile.blade.php template with the fetched payload bound to
- * `$data[<bind>]` (default bind name: `items`).
- *
- * Instance-level vs. screen-level caching:
- *   - `PubClient` owns the HTTP + cache layer and implements SWR.
- *   - This component is a thin Livewire shell — just orchestrates the
- *     fetch, renders, and subscribes to the `block-refresh` broadcast
- *     so pull-to-refresh updates every DynamicBlock on the screen at once.
+ * `dataSource`. Fetches through PubClient on mount, re-renders the
+ * block's mobile.blade.php with `$data` bound, and re-fetches on
+ * `block-refresh` broadcasts (pull-to-refresh).
  */
 class DynamicBlock extends Component
 {
@@ -46,11 +40,6 @@ class DynamicBlock extends Component
         $this->hydrate();
     }
 
-    /**
-     * Broadcast listener: NativeEdge dispatches `block-refresh` when the
-     * user pulls to refresh. We invalidate this block's PubClient cache
-     * entry so the next hydrate makes a fresh request.
-     */
     #[On('block-refresh')]
     public function refresh(): void
     {
@@ -85,10 +74,6 @@ class DynamicBlock extends Component
     }
 
     /**
-     * Read the block's own `native.json` from its public/blocks/{slug}
-     * location (projected by BuildAssembler). Per-block file, per-block
-     * contract — the shell never hard-codes which blocks are dynamic.
-     *
      * @return array<string, mixed>|null
      */
     private function resolveDataSource(): ?array
@@ -109,10 +94,9 @@ class DynamicBlock extends Component
     }
 
     /**
-     * Interpolate `{{ attributes.foo }}` / `{{ context.post.id }}` tokens
-     * in the dataSource param template against the current attributes +
-     * context. Missing references collapse to empty string and are
-     * pruned by PubClient::resolveParams().
+     * Interpolate `{{ attributes.x }}` / `{{ context.post.y }}` tokens
+     * in the native.json param template. Missing references collapse
+     * to empty string and are pruned by PubClient::resolveParams().
      *
      * @param  array<string, mixed> $template
      * @return array<string, mixed>
@@ -142,13 +126,6 @@ class DynamicBlock extends Component
         );
     }
 
-    /**
-     * Render the block's canonical `mobile.blade.php` (projected to
-     * `resources/views/components/mustuse/{slug}.blade.php`) wrapped in
-     * this component's `data-bound` template. The child template is
-     * included via a Blade anonymous component so authors don't write
-     * Livewire-flavored templates by accident.
-     */
     public function render()
     {
         return view('livewire.dynamic-block', [

@@ -1,12 +1,1 @@
-.mua-spacer--sm {
-  height: var(--mua-space-sm);
-}
-.mua-spacer--md {
-  height: var(--mua-space-md);
-}
-.mua-spacer--lg {
-  height: var(--mua-space-lg);
-}
-.mua-spacer--xl {
-  height: var(--mua-space-xl);
-}
+.mua-spacer--sm{height:var(--mua-space-sm)}.mua-spacer--md{height:var(--mua-space-md)}.mua-spacer--lg{height:var(--mua-space-lg)}.mua-spacer--xl{height:var(--mua-space-xl)}

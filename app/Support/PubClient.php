@@ -10,36 +10,20 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
- * Shell → pub HTTP client with SWR (stale-while-revalidate) caching.
+ * Shell → pub HTTP client with stale-while-revalidate caching.
  *
- * Reads endpoints from the manifest's `endpoints` map (already cached on
- * disk in `storage/app/mua-manifest.json`). Auth is the bearer token
- * `MUA_APPKEY` that Bifrost injects per-app at build time. **Never** logs
- * the Authorization header — see `redactedContextFor()`.
+ * Resolves endpoint URLs from the manifest's `endpoints` map. Bearer
+ * auth using `MUA_APPKEY`. Never logs the Authorization header.
  *
- * SWR semantics:
- *   - Cached-and-fresh      → return cached bytes, no request.
- *   - Cached-and-stale      → return cached bytes immediately, fire a
- *                             background refresh (queued job when possible,
- *                             fallthrough to sync when queues are absent).
- *   - Cache miss            → synchronous fetch, populate cache.
- *   - Network failure       → return cached (even if past TTL) if present,
- *                             else empty shape so the template can render
- *                             its own empty state instead of blowing up.
- *
- * `invalidate($cacheKey)` is how pull-to-refresh drops a specific entry;
- * `invalidateAll()` wipes the whole pool (rare — used on manifest reload).
+ * SWR: fresh returns cached; stale returns cached + deferred refresh;
+ * miss fetches synchronously; network failure returns the last cached
+ * body (even past TTL) so templates don't render empty on transient
+ * outages.
  */
 class PubClient
 {
     private const CACHE_PREFIX = 'pub:';
 
-    /**
-     * Lookup an endpoint URL from the manifest's `endpoints` map. The
-     * manifest is the shell's only source of truth about where the pub
-     * lives — BuildAssembler projects it; Bifrost may rotate the base URL
-     * without re-signing if the endpoints map is the one canonical reference.
-     */
     public function resolveEndpoint(string $name): ?string
     {
         $manifest = $this->readManifest();
@@ -52,10 +36,6 @@ class PubClient
     }
 
     /**
-     * Fetch `endpoint` with `params`. Returns `{data: mixed, stale: bool,
-     * revision: string|null}`. Shape-wise, `data` is whatever the endpoint
-     * returns (usually `{items, pagination, app}` for content/terms).
-     *
      * @param array<string, mixed> $params
      * @return array{data: mixed, stale: bool, revision: ?string}
      */
@@ -70,7 +50,6 @@ class PubClient
         $cacheKey = self::cacheKeyFor($endpointName, $params);
         $cached   = Cache::get($cacheKey);
 
-        // Hot path: cached and within TTL. Return without touching the network.
         if (is_array($cached) && isset($cached['expires']) && $cached['expires'] > time()) {
             return [
                 'data'     => $cached['data']     ?? null,
@@ -79,9 +58,6 @@ class PubClient
             ];
         }
 
-        // Stale path: cached but past TTL. Return the stale body and fire
-        // a background refresh. Shells on slow mobile networks get an
-        // instant render; the refresh updates on the next component tick.
         if (is_array($cached) && isset($cached['data'])) {
             $self = $this;
             defer(static fn () => $self->fetchAndStore($url, $params, $cacheKey, $ttl));
@@ -107,10 +83,6 @@ class PubClient
     }
 
     /**
-     * Drop a single query's cache entry — used by pull-to-refresh and by
-     * the `refresh` broadcast dispatched from NativeEdge when the user
-     * explicitly requests fresh data.
-     *
      * @param array<string, mixed> $params
      */
     public function invalidate(string $endpointName, array $params = []): void
@@ -135,11 +107,13 @@ class PubClient
         $revision = $response->header('X-MUA-Content-Revision') ?: null;
         $data     = $response->json();
 
+        // Store ~4x TTL so the stale body is still available for SWR
+        // fallbacks after the fresh window expires.
         Cache::put($cacheKey, [
             'data'     => $data,
             'revision' => $revision,
             'expires'  => time() + $ttl,
-        ], max($ttl * 4, 3600)); // Keep stale bytes around ~4x TTL for SWR fallbacks.
+        ], max($ttl * 4, 3600));
 
         return ['data' => $data, 'revision' => $revision];
     }
@@ -168,9 +142,8 @@ class PubClient
     }
 
     /**
-     * Drop keys whose value is empty-or-zero (so the cache key is stable
-     * when a template leaves an optional attribute unset) and sort for
-     * determinism. The pub's cache key uses the same strategy.
+     * Drop empty / zero params and sort so the cache key is stable when
+     * templates leave optional attributes unset. Mirrors the pub's key.
      *
      * @param  array<string, mixed> $params
      * @return array<string, mixed>
@@ -182,8 +155,11 @@ class PubClient
             if ($v === '' || $v === null) {
                 continue;
             }
+            // Drop 0 values — `category=0`, `author=0`, etc. are
+            // "no filter" sentinels and would otherwise bust the cache
+            // key by appearing as present.
             if ($v === 0 || $v === '0') {
-                continue; // e.g. category=0 means "no filter"
+                continue;
             }
             $cleaned[(string) $k] = $v;
         }
@@ -202,15 +178,6 @@ class PubClient
 
     /**
      * @param array<string, mixed> $params
-     * @return array<string, mixed>
-     */
-    private static function cacheContext(string $endpointName, array $params): string
-    {
-        return self::cacheKeyFor($endpointName, $params);
-    }
-
-    /**
-     * @param array<string, mixed> $params
      */
     private static function cacheKeyFor(string $endpointName, array $params): string
     {
@@ -218,7 +185,8 @@ class PubClient
     }
 
     /**
-     * Scrub anything sensitive before Log::warning.
+     * Scrub sensitive values before Log::warning. Keeps the URL and
+     * params but never the Authorization header.
      *
      * @param array<string, mixed> $params
      * @return array<string, mixed>
