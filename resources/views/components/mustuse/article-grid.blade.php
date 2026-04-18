@@ -1,24 +1,32 @@
-@props(['block' => [], 'children' => [], 'gates' => []])
+@props([
+    'block'    => [],
+    'children' => [],
+    'gates'    => [],
+    'context'  => null,
+    'data'     => null,
+])
 
 @php
-    // BlockAttributeNormalizer::expandArticleList bakes `items` at build time.
-    $items         = is_array($block['items'] ?? null) ? $block['items'] : [];
+    $items         = \Illuminate\Support\Arr::get($data, 'items', []);
     $showThumbnail = $block['showThumbnail'] ?? true;
     $showExcerpt   = $block['showExcerpt']   ?? false;
     $columns       = $block['columns']       ?? 'auto';
 @endphp
 
 @if (!empty($items))
-    <div class="mua-article-grid" data-columns="{{ $columns }}"
-         @if($columns !== 'auto') style="grid-template-columns: repeat({{ (int) $columns }}, 1fr);" @endif>
+    <div
+        class="mua-article-grid"
+        data-columns="{{ $columns }}"
+        @if ($columns !== 'auto') style="grid-template-columns: repeat({{ (int) $columns }}, 1fr);" @endif
+    >
         @foreach ($items as $article)
             @continue(! is_array($article))
             <article class="mua-article-grid__item">
-                <a href="{{ $article['url'] ?? '#' }}" wire:navigate>
-                    @if ($showThumbnail && is_array($article['thumbnail'] ?? null) && !empty($article['thumbnail']['url']))
+                <a href="/article/{{ $article['slug'] ?? $article['id'] ?? '' }}" wire:navigate>
+                    @if ($showThumbnail && is_array($article['featured_image'] ?? null) && !empty($article['featured_image']['url']))
                         <img class="mua-article-grid__thumb"
-                             src="{{ $article['thumbnail']['url'] }}"
-                             alt="{{ $article['thumbnail']['alt'] ?? '' }}"
+                             src="{{ $article['featured_image']['url'] }}"
+                             alt="{{ $article['featured_image']['alt'] ?? '' }}"
                              loading="lazy" />
                     @endif
                     <h4 class="mua-article-grid__title">{{ $article['title'] ?? '' }}</h4>
@@ -29,4 +37,6 @@
             </article>
         @endforeach
     </div>
+@else
+    <div class="mua-article-grid mua-article-grid--empty" aria-busy="true"></div>
 @endif

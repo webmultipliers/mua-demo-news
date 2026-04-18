@@ -1,0 +1,1 @@
+@charset "UTF-8";.mua-post-reading-time{display:inline-block;font-size:13px;color:var(--mua-color-muted);margin-right:var(--mua-space-sm)}.mua-post-reading-time::before{content:"⏱";margin-right:4px;opacity:.6}

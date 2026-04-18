@@ -1,0 +1,9 @@
+{
+    "type": "card",
+    "action": { "type": "navigate", "target": { "type": "path", "value": "{{ attributes.author.url }}" } },
+    "children": [
+        { "type": "image", "src": "{{ attributes.author.avatar.url }}", "aspect_ratio": "1:1", "fit": "cover", "rounded": true },
+        { "type": "text", "content": "{{ attributes.author.name }}", "style": "body_large" },
+        { "visible_when": "{{ attributes.showBio }}", "type": "text", "content": "{{ attributes.author.bio }}", "style": "body" }
+    ]
+}

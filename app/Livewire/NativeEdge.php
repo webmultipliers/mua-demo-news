@@ -63,9 +63,25 @@ class NativeEdge extends Component
      */
     public array $lastCallback = [];
 
+    /**
+     * Route context (post / term / author / search) for the current URL.
+     * Populated from the pub's /resolve-deeplink endpoint when the URL
+     * doesn't exact-match a manifest screen. Context-bound blocks
+     * (`post-title`, `post-featured-image`, …) read from here.
+     *
+     * @var array<string, mixed>|null
+     */
+    public ?array $context = null;
+
     public function mount(string $any = ''): void
     {
-        $this->path = '/' . ltrim($any, '/');
+        // Preserve the full request URI (path + query string) because
+        // /search?q=foo needs the query to reach DeeplinkResolver. The
+        // Livewire router only forwards `$any` from the path regex, so
+        // anything behind `?` would otherwise be lost.
+        $query      = \Illuminate\Support\Facades\Request::getQueryString();
+        $basePath   = '/' . ltrim($any, '/');
+        $this->path = $query !== null && $query !== '' ? $basePath . '?' . $query : $basePath;
         $this->loadManifest();
     }
 
@@ -121,9 +137,105 @@ class NativeEdge extends Component
         $this->drawerScreens  = $this->resolveDrawerScreens($manifest);
         $this->screen         = $this->resolveScreen($manifest, $this->path);
 
+        // If the path doesn't exact-match a screen, ask the pub to resolve
+        // it — handles /article/{slug}, /category/{slug}, /author/{slug},
+        // and any publisher-defined `_mua_deeplink_path` templates. The
+        // pub returns a (screen_id, context) pair; we swap in that screen
+        // and surface the context so post-* blocks can read it.
+        if (! $this->screen) {
+            $resolved = $this->resolveDeeplink($this->path);
+            if ($resolved !== null) {
+                $screenId      = (string) ($resolved['screen_id'] ?? '');
+                $this->context = \is_array($resolved['context'] ?? null) ? $resolved['context'] : null;
+                $this->screen  = $this->findScreenById($manifest, $screenId);
+            }
+        }
+
+        // If the resolved route carries a post context, log the visit.
+        // Fire-and-forget: failures don't surface to the user; the next
+        // online tick retries implicitly via PubClient's SWR cache.
+        $contextPostId = (int) \Illuminate\Support\Arr::get($this->context, 'post.id', 0);
+        if ($contextPostId > 0) {
+            try {
+                app(\App\Services\Persistence::class)->recordVisit(
+                    $contextPostId,
+                    (string) \Illuminate\Support\Arr::get($this->context, 'post.post_type', 'post'),
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::info('recordVisit skipped', ['error' => $e->getMessage()]);
+            }
+        }
+
         if (! $this->screen) {
             $this->message = 'No screen configured for path ' . $this->path;
         }
+    }
+
+    /**
+     * POST the current path to the pub's /resolve-deeplink endpoint.
+     * Returns null on any failure; callers fall through to the "no screen
+     * configured" message so a momentary network blip doesn't look like
+     * the app is broken.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function resolveDeeplink(string $path): ?array
+    {
+        $endpoints = $this->manifest['endpoints'] ?? [];
+        $url       = is_array($endpoints) && isset($endpoints['resolve_deeplink'])
+            ? (string) $endpoints['resolve_deeplink']
+            : '';
+        $appKey    = (string) env('MUA_APPKEY', '');
+        if ($url === '' || $appKey === '') {
+            return null;
+        }
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                    'Accept'        => 'application/json',
+                    'Authorization' => 'Bearer ' . $appKey,
+                ])
+                ->timeout(8)
+                ->post($url, ['path' => $path]);
+            if (! $response->successful()) {
+                return null;
+            }
+            $body = $response->json();
+            return is_array($body) ? $body : null;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('resolve-deeplink failed', [
+                'path'  => $path,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Look up a screen by its slug/id in the already-loaded manifest.
+     *
+     * @param array<string, mixed> $manifest
+     * @return array<string, mixed>|null
+     */
+    protected function findScreenById(array $manifest, string $screenId): ?array
+    {
+        if ($screenId === '') {
+            return null;
+        }
+        $screens = $manifest['screens'] ?? [];
+        if (! \is_array($screens)) {
+            return null;
+        }
+        foreach ($screens as $screen) {
+            if (! \is_array($screen)) {
+                continue;
+            }
+            $candidate = (string) ($screen['id'] ?? $screen['slug'] ?? '');
+            if ($candidate === $screenId) {
+                return $screen;
+            }
+        }
+        return null;
     }
 
     /**
@@ -224,7 +336,11 @@ class NativeEdge extends Component
             return null;
         }
 
-        $target = rtrim($path, '/') ?: '/';
+        // Strip query string for path matching — `/about?ref=abc` should
+        // still match a screen whose path is `/about`. Query strings are
+        // only relevant for deeplink resolution (/search?q=...).
+        $pathOnly = strtok($path, '?');
+        $target   = rtrim((string) $pathOnly, '/') ?: '/';
 
         foreach ($screens as $screen) {
             if (! is_array($screen)) {
@@ -280,6 +396,19 @@ class NativeEdge extends Component
         Biometrics::prompt('Unlock ' . $gateId);
     }
 
+    /**
+     * Pull-to-refresh handler. Broadcasts `block-refresh` so every nested
+     * <livewire:dynamic-block> on this screen drops its PubClient cache
+     * entry and re-fetches. Wired to the native gesture in the blade layer
+     * (or to a manual refresh button until the gesture lands).
+     */
+    public function triggerRefresh(): void
+    {
+        // Laravel Livewire 3 broadcast: fires on every mounted component
+        // that declares `#[On('block-refresh')]`.
+        $this->dispatch('block-refresh');
+    }
+
     // --- Native event listeners (async completion callbacks) -----------
 
     #[OnNative(PhotoTaken::class)]
@@ -325,10 +454,16 @@ class NativeEdge extends Component
             $this->screen['block_tree'] ?? null,
         );
 
+        // When the route resolved a detail context (post / term / author),
+        // prefer that object's title over the manifest's branding name so
+        // the tab / status bar reflects what the user is actually reading.
+        $effectiveTitle = (string) (data_get($this->context, 'post.title') ?: $this->title);
+
         return view('livewire.native-edge')
             ->layoutData([
-                'title'             => $this->title,
+                'title'             => $effectiveTitle,
                 'manifest'          => $this->manifest,
+                'context'           => $this->context,
                 'inlineBlockCss'    => $collector->inlineCss(),
                 'inlineBlockJs'     => $collector->inlineJs(),
                 'presentBlockSlugs' => $collector->slugs(),
