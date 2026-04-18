@@ -1,8 +1,11 @@
 @props(['block' => [], 'children' => [], 'gates' => []])
 
 @php
-    $content = $block['content'] ?? ($block['html'] ?? '');
-    $align   = $block['align']   ?? 'left';
+    $content = (string) ($block['content'] ?? '');
+    $align   = (string) ($block['align']   ?? 'left');
+    if (! in_array($align, ['left', 'center', 'right'], true)) {
+        $align = 'left';
+    }
 @endphp
 
 {{-- The pub sanitizes content before it ever reaches the manifest;

@@ -1,0 +1,22 @@
+.mua-breaking-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--mua-space-sm);
+  padding: 10px var(--mua-space-md);
+  background: var(--mua-color-danger);
+  color: #fff;
+  border-radius: var(--mua-radius-sm);
+  margin-bottom: var(--mua-space-md);
+  font-weight: 600;
+}
+.mua-breaking-banner a {
+  color: #fff;
+}
+.mua-breaking-banner__label {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: var(--mua-radius-sm);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}

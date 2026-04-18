@@ -1,0 +1,32 @@
+.mua-text {
+  font-family: var(--mua-font-serif);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--mua-color-text);
+  margin-bottom: var(--mua-space-md);
+}
+.mua-text p {
+  margin: 0 0 var(--mua-space-md);
+}
+.mua-text h2, .mua-text h3, .mua-text h4 {
+  font-family: var(--mua-font-family);
+}
+.mua-text ul, .mua-text ol {
+  padding-left: 22px;
+}
+.mua-text blockquote {
+  border-left: 3px solid var(--mua-color-accent);
+  padding-left: var(--mua-space-md);
+  margin: var(--mua-space-md) 0;
+  color: var(--mua-color-muted);
+  font-style: italic;
+}
+.mua-text--left {
+  text-align: left;
+}
+.mua-text--center {
+  text-align: center;
+}
+.mua-text--right {
+  text-align: right;
+}

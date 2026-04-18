@@ -316,6 +316,22 @@ class NativeEdge extends Component
 
     public function render()
     {
-        return view('livewire.native-edge');
+        // Collect only the CSS/JS for blocks actually present on the
+        // currently-rendering screen. BlockAssetCollector reads per-block
+        // assets that BuildAssembler projected from Blockstudio's _dist/
+        // at publish time, so the bytes inlined below are the same bytes
+        // the WP editor + public site use.
+        $collector = new \App\Support\BlockAssetCollector(
+            $this->screen['block_tree'] ?? null,
+        );
+
+        return view('livewire.native-edge')
+            ->layoutData([
+                'title'             => $this->title,
+                'manifest'          => $this->manifest,
+                'inlineBlockCss'    => $collector->inlineCss(),
+                'inlineBlockJs'     => $collector->inlineJs(),
+                'presentBlockSlugs' => $collector->slugs(),
+            ]);
     }
 }

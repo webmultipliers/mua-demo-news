@@ -1,20 +1,21 @@
 @props(['block' => [], 'children' => [], 'gates' => []])
 
 @php
-    $url     = $block['url']     ?? '';
-    $alt     = $block['alt']     ?? '';
+    // `image` is normalized to { id, url, alt, width, height } by
+    // BlockAttributeNormalizer::resolveImage(). Block-level alt/caption
+    // override the attachment metadata.
+    $image   = is_array($block['image'] ?? null) ? $block['image'] : null;
     $caption = $block['caption'] ?? '';
-    $width   = $block['width']   ?? null;
-    $height  = $block['height']  ?? null;
+    $alt     = $block['alt']     ?? ($image['alt'] ?? '');
 @endphp
 
-@if ($url !== '')
+@if (is_array($image) && !empty($image['url']))
     <figure class="mua-image">
         <img class="mua-image__img"
-             src="{{ $url }}"
+             src="{{ $image['url'] }}"
              alt="{{ $alt }}"
-             @if ($width)  width="{{ (int) $width }}"   @endif
-             @if ($height) height="{{ (int) $height }}" @endif
+             @if (!empty($image['width']))  width="{{ (int) $image['width'] }}"   @endif
+             @if (!empty($image['height'])) height="{{ (int) $image['height'] }}" @endif
              loading="lazy" />
         @if ($caption !== '')
             <figcaption class="mua-image__caption">{{ $caption }}</figcaption>
