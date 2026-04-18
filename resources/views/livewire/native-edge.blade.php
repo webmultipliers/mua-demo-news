@@ -53,9 +53,20 @@
     @endif
 
     @if ($screen)
-        <main class="mua-screen" data-screen-id="{{ $screen['id'] ?? '' }}">
+        <main
+            class="mua-screen"
+            data-screen-id="{{ $screen['id'] ?? '' }}"
+            wire:click.self="$set('_ignore', null)"
+        >
+            {{-- Pull-to-refresh: a tap on the refresh button fires
+                 `triggerRefresh()` which broadcasts `block-refresh` to
+                 every <livewire:dynamic-block> on the screen. --}}
             @foreach (($screen['block_tree'] ?? []) as $block)
-                @include('livewire.partials.dispatch-block', ['block' => $block])
+                @include('livewire.partials.dispatch-block', [
+                    'block'   => $block,
+                    'context' => $this->context,
+                    'gates'   => $this->gates,
+                ])
             @endforeach
         </main>
     @else

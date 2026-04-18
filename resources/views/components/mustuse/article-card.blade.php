@@ -1,49 +1,35 @@
-@props(['block' => [], 'children' => [], 'gates' => []])
+@props([
+    'block'    => [],
+    'children' => [],
+    'gates'    => [],
+    'context'  => null,
+    'data'     => null,
+])
 
 @php
-    $article = $block['article'] ?? null;
+    // article-card's /content?id=postId lookup puts the article in items[0].
+    $article = \Illuminate\Support\Arr::get($data, 'items.0');
 @endphp
 
 @if (is_array($article))
     <article class="mua-article-card">
-        @if (is_array($article['thumbnail'] ?? null) && !empty($article['thumbnail']['url']))
-            <a class="mua-article-card__image-link" href="{{ $article['url'] ?? '#' }}" wire:navigate>
+        <a class="mua-article-card__link"
+           href="/article/{{ $article['slug'] ?? $article['id'] ?? '' }}"
+           wire:navigate>
+            @if (($block['showThumbnail'] ?? true) && is_array($article['featured_image'] ?? null) && !empty($article['featured_image']['url']))
                 <img class="mua-article-card__image"
-                     src="{{ $article['thumbnail']['url'] }}"
-                     alt="{{ $article['thumbnail']['alt'] ?? '' }}"
+                     src="{{ $article['featured_image']['url'] }}"
+                     alt="{{ $article['featured_image']['alt'] ?? '' }}"
                      loading="lazy" />
-            </a>
-        @endif
-
-        <div class="mua-article-card__body">
-            @if (!empty($article['categories']))
-                <div class="mua-article-card__categories">
-                    @foreach ($article['categories'] as $cat)
-                        <a class="mua-pill" href="/category/{{ $cat['slug'] }}" wire:navigate>{{ $cat['name'] }}</a>
-                    @endforeach
-                </div>
             @endif
-
-            <h2 class="mua-article-card__title">
-                <a href="{{ $article['url'] ?? '#' }}" wire:navigate>{{ $article['title'] ?? '' }}</a>
-            </h2>
-
-            @if (!empty($article['excerpt']))
-                <p class="mua-article-card__excerpt">{{ $article['excerpt'] }}</p>
-            @endif
-
-            <div class="mua-article-card__meta">
-                @if (!empty($article['author']['name']))
-                    <span class="mua-article-card__author">{{ $article['author']['name'] }}</span>
-                @endif
-                @if (!empty($article['date_human']))
-                    <span class="mua-article-card__date">{{ $article['date_human'] }}</span>
+            <div class="mua-article-card__body">
+                <h3 class="mua-article-card__title">{{ $article['title'] ?? '' }}</h3>
+                @if (($block['showExcerpt'] ?? true) && !empty($article['excerpt']))
+                    <p class="mua-article-card__excerpt">{{ $article['excerpt'] }}</p>
                 @endif
             </div>
-        </div>
+        </a>
     </article>
 @else
-    <article class="mua-article-card mua-article-card--empty">
-        <p>{{ __('Article unavailable.') }}</p>
-    </article>
+    <article class="mua-article-card mua-article-card--placeholder" aria-busy="true"></article>
 @endif

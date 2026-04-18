@@ -1,8 +1,13 @@
-@props(['block' => [], 'children' => [], 'gates' => []])
+@props([
+    'block'    => [],
+    'children' => [],
+    'gates'    => [],
+    'context'  => null,
+    'data'     => null,
+])
 
 @php
-    // BlockAttributeNormalizer::expandCategoryList bakes `items` from WP.
-    $items      = is_array($block['items'] ?? null) ? $block['items'] : [];
+    $items      = \Illuminate\Support\Arr::get($data, 'items', []);
     $activeSlug = (string) ($block['activeSlug'] ?? '');
 @endphp
 
@@ -12,8 +17,14 @@
             @continue(! is_array($item))
             @php $isActive = $activeSlug !== '' && $activeSlug === ($item['slug'] ?? ''); @endphp
             <div class="mua-category-pills__item {{ $isActive ? 'is-active' : '' }}">
-                <a class="mua-pill" href="{{ $item['url'] ?? '#' }}" wire:navigate>{{ $item['name'] ?? '' }}</a>
+                <a class="mua-pill"
+                   href="{{ $item['url'] ?? ('/' . ($item['taxonomy'] ?? 'category') . '/' . ($item['slug'] ?? '')) }}"
+                   wire:navigate>
+                    {{ $item['name'] ?? '' }}
+                </a>
             </div>
         @endforeach
     </nav>
+@else
+    <nav class="mua-category-pills mua-category-pills--empty" aria-busy="true" aria-label="Categories"></nav>
 @endif

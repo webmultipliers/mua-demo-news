@@ -22,19 +22,7 @@
         "splash_url": "",
         "background_color": "#6e3030"
     },
-    "routing": [
-        {
-            "screen_id": "news",
-            "type": "standard",
-            "post_type": "post",
-            "taxonomy": "",
-            "term_id": 0,
-            "custom_id": "",
-            "query_args": {
-                "post_type": "post"
-            }
-        }
-    ],
+    "routing": [],
     "navigation": [
         {
             "screen_id": "home",
@@ -88,32 +76,7 @@
                 },
                 {
                     "type": "mustuse-apps-pub\/article-list",
-                    "attributes": {
-                        "items": [
-                            {
-                                "id": 60,
-                                "title": "A post title.",
-                                "slug": "a-post-title",
-                                "url": "\/article\/a-post-title",
-                                "excerpt": "It&#8217;s just a post.",
-                                "date": "2026-04-17T18:31:04-07:00",
-                                "date_human": "7 hours ago",
-                                "thumbnail": null,
-                                "author": {
-                                    "id": 1,
-                                    "name": "goporicasu4363",
-                                    "url": "\/author\/goporicasu4363"
-                                },
-                                "categories": [
-                                    {
-                                        "id": 1,
-                                        "name": "Uncategorized",
-                                        "slug": "uncategorized"
-                                    }
-                                ]
-                            }
-                        ]
-                    }
+                    "attributes": []
                 }
             ]
         }
@@ -121,162 +84,67 @@
     "deeplink": null,
     "endpoints": {
         "content": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/content",
+        "terms": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/terms",
         "capabilities": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/capabilities",
         "resolve_deeplink": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/resolve-deeplink",
         "auth_complete": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/auth\/complete",
         "auth_status": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/auth\/status",
         "auth_logout": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/auth\/logout",
-        "subscriber_state": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/subscriber\/state"
+        "subscriber_state": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/subscriber\/state",
+        "bookmarks": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/bookmarks",
+        "history": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/history",
+        "push_enroll": "https:\/\/www.mustuse.com\/wp-json\/mustuse-apps-pub\/v1\/apps\/mustuse-news\/push\/enroll"
     },
     "requiredCapabilities": [],
     "renderers": {
         "mustuse-apps-pub\/article-card": {
-            "type": "data",
-            "endpoint": "\/wp-json\/mustuse-apps-pub\/v1\/apps\/{app_slug}\/content",
-            "params": {
-                "post_id": "{{ attributes.postId }}",
-                "per_page": 1
-            },
-            "bind_to": "article",
-            "children": [
-                {
-                    "type": "container",
-                    "padding": 16,
-                    "border_radius": 8,
-                    "background": "#ffffff",
-                    "children": [
-                        {
-                            "type": "stack",
-                            "direction": "vertical",
-                            "spacing": 12,
-                            "children": [
-                                {
-                                    "visible_when": "{{ attributes.showThumbnail }}",
-                                    "type": "image",
-                                    "src": "{{ article.featured_image }}",
-                                    "aspect_ratio": "16:9",
-                                    "fit": "cover"
-                                },
-                                {
-                                    "type": "text",
-                                    "content": "{{ article.title }}",
-                                    "style": "heading_3"
-                                },
-                                {
-                                    "visible_when": "{{ attributes.showExcerpt }}",
-                                    "type": "text",
-                                    "content": "{{ article.excerpt }}",
-                                    "style": "body"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "version": 2,
+            "description": "Single featured article. `postId` attribute drives an `id=` lookup on \/content; the response puts the article in items[0].",
+            "dataSource": {
+                "kind": "posts",
+                "endpoint": "content",
+                "method": "GET",
+                "params": {
+                    "id": "{{ attributes.postId }}"
+                },
+                "bind": "items",
+                "ttl": 600,
+                "swr": true
+            }
         },
         "mustuse-apps-pub\/article-grid": {
-            "type": "grid",
-            "columns": "{{ attributes.columns }}",
-            "data_key": "items",
-            "child_template": {
-                "type": "card",
-                "action": {
-                    "type": "navigate",
-                    "target": {
-                        "type": "path",
-                        "value": "{{ item.url }}"
-                    }
+            "version": 2,
+            "description": "Responsive article grid. Same fetch contract as article-list; the mobile Blade template lays it out as a grid instead of a stack.",
+            "dataSource": {
+                "kind": "posts",
+                "endpoint": "content",
+                "method": "GET",
+                "params": {
+                    "post_type": "{{ attributes.postType }}",
+                    "per_page": "{{ attributes.count }}",
+                    "category": "{{ attributes.category }}"
                 },
-                "children": [
-                    {
-                        "visible_when": "{{ attributes.showThumbnail }}",
-                        "type": "image",
-                        "src": "{{ item.thumbnail.url }}",
-                        "alt": "{{ item.thumbnail.alt }}",
-                        "aspect_ratio": "4:3",
-                        "fit": "cover"
-                    },
-                    {
-                        "type": "text",
-                        "content": "{{ item.title }}",
-                        "style": "body"
-                    },
-                    {
-                        "visible_when": "{{ attributes.showExcerpt }}",
-                        "type": "text",
-                        "content": "{{ item.excerpt }}",
-                        "style": "caption"
-                    }
-                ]
+                "bind": "items",
+                "ttl": 300,
+                "swr": true
             }
         },
         "mustuse-apps-pub\/article-list": {
-            "type": "data",
-            "endpoint": "\/wp-json\/mustuse-apps-pub\/v1\/apps\/{app_slug}\/content",
-            "params": {
-                "post_type": "{{ attributes.postType }}",
-                "per_page": "{{ attributes.count }}",
-                "category": "{{ attributes.category }}"
-            },
-            "bind_to": "articles",
-            "children": [
-                {
-                    "type": "stack",
-                    "direction": "vertical",
-                    "spacing": 0,
-                    "children": [
-                        {
-                            "type": "foreach",
-                            "items": "{{ articles.items }}",
-                            "as": "post",
-                            "render": {
-                                "type": "container",
-                                "padding": {
-                                    "top": 12,
-                                    "bottom": 12,
-                                    "left": 16,
-                                    "right": 16
-                                },
-                                "children": [
-                                    {
-                                        "type": "stack",
-                                        "direction": "horizontal",
-                                        "spacing": 12,
-                                        "align": "center",
-                                        "children": [
-                                            {
-                                                "visible_when": "{{ attributes.showThumbnail }}",
-                                                "type": "image",
-                                                "src": "{{ post.featured_image }}",
-                                                "aspect_ratio": "1:1",
-                                                "fit": "cover"
-                                            },
-                                            {
-                                                "type": "stack",
-                                                "direction": "vertical",
-                                                "spacing": 4,
-                                                "children": [
-                                                    {
-                                                        "type": "text",
-                                                        "content": "{{ post.title }}",
-                                                        "style": "body_large"
-                                                    },
-                                                    {
-                                                        "visible_when": "{{ attributes.showExcerpt }}",
-                                                        "type": "text",
-                                                        "content": "{{ post.excerpt }}",
-                                                        "style": "caption"
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            ]
+            "version": 2,
+            "description": "List of articles fetched live from the pub's \/content endpoint. The shell's DynamicBlock Livewire component hydrates `items` at render time; pull-to-refresh invalidates the cache and re-fetches.",
+            "dataSource": {
+                "kind": "posts",
+                "endpoint": "content",
+                "method": "GET",
+                "params": {
+                    "post_type": "{{ attributes.postType }}",
+                    "per_page": "{{ attributes.count }}",
+                    "category": "{{ attributes.category }}"
+                },
+                "bind": "items",
+                "ttl": 300,
+                "swr": true
+            }
         },
         "mustuse-apps-pub\/auth-gate": {
             "type": "stack",
@@ -369,6 +237,11 @@
                 }
             ]
         },
+        "mustuse-apps-pub\/bookmark-toggle": {
+            "version": 2,
+            "description": "Bookmark button for context.post. Persists via POST\/DELETE \/apps\/{slug}\/bookmarks with X-MUA-Device-Id header. Local SecureStorage cache keeps state across launches.",
+            "consumes_context": "post"
+        },
         "mustuse-apps-pub\/breaking-banner": {
             "type": "banner",
             "style": "alert",
@@ -383,19 +256,20 @@
             }
         },
         "mustuse-apps-pub\/category-pills": {
-            "type": "horizontal_scroll",
-            "data_key": "items",
-            "child_template": {
-                "type": "chip",
-                "label": "{{ item.name }}",
-                "active_when": "{{ item.slug }} == {{ attributes.activeSlug }}",
-                "action": {
-                    "type": "navigate",
-                    "target": {
-                        "type": "path",
-                        "value": "{{ item.url }}"
-                    }
-                }
+            "version": 2,
+            "description": "Horizontal list of taxonomy terms (categories, tags, custom taxonomies). Fetched live from the \/terms endpoint. TTL is long because term metadata moves rarely; pull-to-refresh invalidates immediately.",
+            "dataSource": {
+                "kind": "terms",
+                "endpoint": "terms",
+                "method": "GET",
+                "params": {
+                    "taxonomy": "{{ attributes.taxonomy }}",
+                    "per_page": "{{ attributes.count }}",
+                    "include": "{{ attributes.categoryIds }}"
+                },
+                "bind": "items",
+                "ttl": 1800,
+                "swr": true
             }
         },
         "mustuse-apps-pub\/divider": {
@@ -503,10 +377,159 @@
                 }
             ]
         },
+        "mustuse-apps-pub\/post-author-avatar": {
+            "version": 2,
+            "description": "Author avatar image for current context post.",
+            "consumes_context": "post",
+            "field": "author.avatar"
+        },
+        "mustuse-apps-pub\/post-author-name": {
+            "version": 2,
+            "description": "Author display name for current context post.",
+            "consumes_context": "post",
+            "field": "author.name"
+        },
+        "mustuse-apps-pub\/post-content": {
+            "version": 2,
+            "description": "Full post body (HTML). Reads context.post.content.",
+            "consumes_context": "post",
+            "field": "content"
+        },
+        "mustuse-apps-pub\/post-date": {
+            "version": 2,
+            "description": "Post publication date.",
+            "consumes_context": "post",
+            "field": "date"
+        },
+        "mustuse-apps-pub\/post-excerpt": {
+            "version": 2,
+            "description": "Plain-text post excerpt.",
+            "consumes_context": "post",
+            "field": "excerpt"
+        },
+        "mustuse-apps-pub\/post-featured-image": {
+            "version": 2,
+            "description": "Featured image from current context post.",
+            "consumes_context": "post",
+            "field": "featured_image"
+        },
+        "mustuse-apps-pub\/post-meta": {
+            "version": 2,
+            "description": "Single registered post_meta value by key.",
+            "consumes_context": "post",
+            "field": "meta"
+        },
+        "mustuse-apps-pub\/post-reading-time": {
+            "version": 2,
+            "description": "Reading time in minutes (225 wpm).",
+            "consumes_context": "post",
+            "field": "reading_time_min"
+        },
+        "mustuse-apps-pub\/post-template": {
+            "version": 2,
+            "description": "Iteration marker for Query Loop. The shell's QueryLoop Livewire component renders this block's innerBlocks once per item with context.post set to the current iteration. Direct rendering is a no-op.",
+            "consumes_context": "post",
+            "iterates": true
+        },
+        "mustuse-apps-pub\/post-terms": {
+            "version": 2,
+            "description": "Taxonomy terms attached to the current post, rendered as pills.",
+            "consumes_context": "post",
+            "field": "terms"
+        },
+        "mustuse-apps-pub\/post-title": {
+            "version": 2,
+            "description": "Current-context post title. Static \u2014 no fetch, just reads context.post.title.",
+            "consumes_context": "post",
+            "field": "title"
+        },
+        "mustuse-apps-pub\/push-enroll": {
+            "version": 2,
+            "description": "Push-notification opt-in prompt. Invokes NativePHP's PushNotifications::enroll on click; the #[OnNative(TokenGenerated)] listener syncs the returned token to \/push\/enroll keyed by X-MUA-Device-Id.",
+            "required_capability": "push_notifications"
+        },
+        "mustuse-apps-pub\/query-loop": {
+            "version": 2,
+            "description": "Container that fetches N posts and sets `context.post` once per iteration of its post-template child. Non-post-template siblings (header \/ footer) render once without the per-item context.",
+            "dataSource": {
+                "kind": "posts",
+                "endpoint": "content",
+                "method": "GET",
+                "params": {
+                    "post_type": "{{ attributes.postType }}",
+                    "per_page": "{{ attributes.count }}",
+                    "category": "{{ attributes.category }}",
+                    "taxonomy": "{{ attributes.taxonomy }}",
+                    "term": "{{ attributes.term }}",
+                    "author": "{{ attributes.author }}",
+                    "orderby": "{{ attributes.orderby }}",
+                    "order": "{{ attributes.order }}"
+                },
+                "bind": "items",
+                "ttl": 300,
+                "swr": true
+            },
+            "provides_context": "post"
+        },
         "mustuse-apps-pub\/quote": {
             "type": "quote",
             "text": "{{ attributes.text }}",
             "cite": "{{ attributes.cite }}"
+        },
+        "mustuse-apps-pub\/read-history-list": {
+            "version": 2,
+            "description": "Fetches per-device reading history. Keyed on X-MUA-Device-Id header; each item carries the same post context shape as \/content so post-title \/ featured-image render inline.",
+            "dataSource": {
+                "kind": "history",
+                "endpoint": "history",
+                "method": "GET",
+                "params": [],
+                "bind": "items",
+                "ttl": 60,
+                "swr": true
+            }
+        },
+        "mustuse-apps-pub\/related-articles": {
+            "version": 2,
+            "description": "Related articles by category. Consumes the current `post` context to find the active category and excludes the current post from results. `related=1` is a ContentMapper hook that extensions can implement.",
+            "consumes_context": "post",
+            "dataSource": {
+                "kind": "posts",
+                "endpoint": "content",
+                "method": "GET",
+                "params": {
+                    "per_page": "{{ attributes.count }}",
+                    "related": "1",
+                    "exclude": "{{ context.post.id }}",
+                    "category": "{{ context.post.primary_category_id }}"
+                },
+                "bind": "items",
+                "ttl": 300,
+                "swr": true
+            }
+        },
+        "mustuse-apps-pub\/search-results": {
+            "version": 2,
+            "description": "Search results. Consumes the route context's `query` value (set by DeeplinkResolver for \/search?q=...) and streams it into the \/content search parameter.",
+            "consumes_context": "search",
+            "dataSource": {
+                "kind": "posts",
+                "endpoint": "content",
+                "method": "GET",
+                "params": {
+                    "post_type": "{{ attributes.postType }}",
+                    "per_page": "{{ attributes.perPage }}",
+                    "search": "{{ context.search.query }}"
+                },
+                "bind": "items",
+                "ttl": 30,
+                "swr": false
+            }
+        },
+        "mustuse-apps-pub\/search": {
+            "version": 2,
+            "description": "Search input. Reads `context.search.query` (when on a search screen) so the current query sticks in the field after navigation; submitting navigates to \/search?q={value}.",
+            "consumes_context": "search"
         },
         "mustuse-apps-pub\/section-heading": {
             "type": "stack",
@@ -553,6 +576,24 @@
                 "li",
                 "code"
             ]
+        },
+        "mustuse-apps-pub\/trending": {
+            "version": 2,
+            "description": "Numbered list of articles ordered by `comment_count` (default) or publisher-provided metric.",
+            "dataSource": {
+                "kind": "posts",
+                "endpoint": "content",
+                "method": "GET",
+                "params": {
+                    "post_type": "{{ attributes.postType }}",
+                    "per_page": "{{ attributes.count }}",
+                    "orderby": "{{ attributes.orderby }}",
+                    "order": "DESC"
+                },
+                "bind": "items",
+                "ttl": 300,
+                "swr": true
+            }
         },
         "mustuse-apps-pub\/video": {
             "type": "stack",
