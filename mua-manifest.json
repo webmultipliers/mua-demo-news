@@ -1,7 +1,7 @@
 {
     "version": 1,
     "app": {
-        "id": 50,
+        "id": 65,
         "slug": "mustuse-news",
         "name": "MustUse News",
         "app_type": "mobile_ios",
@@ -15,74 +15,35 @@
         "name": "",
         "logo_url": "",
         "primary_color": "#1e1e1e",
-        "accent_color": "#ba2ca0",
+        "accent_color": "#2271b1",
         "privacy_policy_url": "",
         "support_email": "",
         "icon_url": "",
         "splash_url": "",
-        "background_color": "#6e3030"
+        "background_color": "#ffffff"
     },
     "routing": [],
     "navigation": [
         {
-            "screen_id": "home",
+            "screen_id": "home-2",
             "label": "Home",
-            "icon": "",
-            "order": 0
-        },
-        {
-            "screen_id": "news",
-            "label": "News",
             "icon": "",
             "order": 0
         }
     ],
     "screen_tree": [
         {
-            "screen_id": "home",
+            "screen_id": "home-2",
             "title": "Home",
-            "icon": "",
-            "children": []
-        },
-        {
-            "screen_id": "news",
-            "title": "News",
             "icon": "",
             "children": []
         }
     ],
     "screens": [
         {
-            "id": "home",
+            "id": "home-2",
             "type": "screen",
             "title": "Home",
-            "block_tree": [
-                {
-                    "type": "mustuse-apps-pub\/breaking-banner",
-                    "attributes": {
-                        "blockstudio": {
-                            "attributes": {
-                                "label": "Breaking",
-                                "headline": "Whoa",
-                                "linkUrl": ""
-                            }
-                        }
-                    }
-                },
-                {
-                    "type": "core\/paragraph",
-                    "attributes": []
-                },
-                {
-                    "type": "mustuse-apps-pub\/read-history-list",
-                    "attributes": []
-                }
-            ]
-        },
-        {
-            "id": "news",
-            "type": "screen",
-            "title": "News",
             "block_tree": [
                 {
                     "type": "core\/heading",
@@ -91,7 +52,7 @@
                     }
                 },
                 {
-                    "type": "mustuse-apps-pub\/article-list",
+                    "type": "core\/paragraph",
                     "attributes": []
                 }
             ]
