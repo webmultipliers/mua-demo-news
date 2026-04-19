@@ -4,10 +4,18 @@ declare(strict_types=1);
 
 namespace App\Livewire;
 
+use App\Events\AudioRecorded;
 use Livewire\Component;
 use Native\Mobile\Attributes\OnNative;
+use Native\Mobile\Events\Alert\ButtonPressed as AlertButtonPressed;
 use Native\Mobile\Events\Biometric\Completed as BiometricCompleted;
 use Native\Mobile\Events\Camera\PhotoTaken;
+use Native\Mobile\Events\Camera\VideoCancelled;
+use Native\Mobile\Events\Camera\VideoRecorded;
+use Native\Mobile\Events\Gallery\MediaSelected;
+use Native\Mobile\Events\Geolocation\LocationReceived;
+use Native\Mobile\Events\Geolocation\PermissionRequestResult as GeoPermissionRequestResult;
+use Native\Mobile\Events\Geolocation\PermissionStatusReceived as GeoPermissionStatusReceived;
 use Native\Mobile\Events\Scanner\CodeScanned;
 use Native\Mobile\Facades\Biometrics;
 use Native\Mobile\Facades\Browser;
@@ -29,6 +37,14 @@ use Native\Mobile\Facades\Share;
  */
 class NativeEdge extends Component
 {
+    /**
+     * Highest manifest schema version this shell knows how to render.
+     * Bumped in lockstep with the publisher's ManifestBuilder::SCHEMA_VERSION
+     * whenever a breaking change lands. Manifests with `min_shell_version`
+     * above this number are refused at load time.
+     */
+    public const SUPPORTED_SCHEMA_VERSION = 1;
+
     public string $path = '/';
 
     /** @var array<string, mixed>|null */
@@ -44,6 +60,15 @@ class NativeEdge extends Component
 
     /** @var array<int, array<string, mixed>> */
     public array $drawerScreens = [];
+
+    /**
+     * Publisher-curated flat side-navigation list. Distinct from
+     * `$drawerScreens` (full hierarchical tree) — side-nav is an
+     * opt-in, ordered subset of screens chosen by the publisher.
+     *
+     * @var array<int, array<string, mixed>>
+     */
+    public array $sideNav = [];
 
     public string $message = '';
 
@@ -62,6 +87,25 @@ class NativeEdge extends Component
      * @var array<string, array<string, mixed>>
      */
     public array $lastCallback = [];
+
+    /**
+     * Snapshot of `Device::getInfo()` + `Device::getBatteryInfo()` —
+     * populated on mount and on `triggerRefresh()`. The device-info
+     * display block reads from this bag rather than calling the facade
+     * on every render, so Livewire re-renders don't trigger a native
+     * bridge round-trip for unchanged data.
+     *
+     * @var array<string, mixed>
+     */
+    public array $deviceInfo = [];
+
+    /**
+     * Snapshot of `Network::status()`. Same pattern as `$deviceInfo` —
+     * parent-owned state the network-status block consumes via props.
+     *
+     * @var array<string, mixed>
+     */
+    public array $networkStatus = [];
 
     /**
      * Route context (post / term / author / search) for the current URL.
@@ -85,14 +129,10 @@ class NativeEdge extends Component
 
     protected function loadManifest(): void
     {
-        // Bifrost's mobile runtime may not extract `storage/app/` from the
-        // APK assets (storage is treated as runtime-writable and can start
-        // empty on first boot). Fall back to a copy at `base_path()` that
-        // is guaranteed to live alongside the extracted app, and self-heal
-        // the storage copy on the first successful read.
-        [$manifestPath, $sigPath] = $this->resolveManifestPaths();
+        $manifestPath = storage_path('app/mua-manifest.json');
+        $sigPath      = storage_path('app/mua-manifest.sig');
 
-        if ($manifestPath === null) {
+        if (! is_file($manifestPath)) {
             $this->message = 'Manifest not found. Project a build from the publisher and redeploy this shell.';
             return;
         }
@@ -102,8 +142,6 @@ class NativeEdge extends Component
             $this->message = 'Could not read manifest file.';
             return;
         }
-
-        $this->persistManifestToStorage($raw, $sigPath);
 
         // HMAC verification (fail-closed when key is configured). The pub's
         // BuildAssembler signs the exact bytes it wrote; we HMAC those same
@@ -129,10 +167,22 @@ class NativeEdge extends Component
             return;
         }
 
+        $minShell = (int) ($manifest['min_shell_version'] ?? 1);
+        if ($minShell > self::SUPPORTED_SCHEMA_VERSION) {
+            $this->message = sprintf(
+                'Manifest needs schema v%d but this shell only understands v%d. Upgrade the shell binary.',
+                $minShell,
+                self::SUPPORTED_SCHEMA_VERSION,
+            );
+            return;
+        }
+
         $this->manifest       = $manifest;
         $this->title          = (string) ($manifest['branding']['name'] ?? config('app.name', 'App'));
         $this->navTabs        = $this->resolveNavTabs($manifest);
         $this->drawerScreens  = $this->resolveDrawerScreens($manifest);
+        $this->sideNav        = $this->resolveSideNav($manifest);
+        $this->refreshDeviceState();
         $this->screen         = $this->resolveScreen($manifest, $this->path);
 
         // Fall back to the pub for anything that isn't an exact-match
@@ -237,15 +287,17 @@ class NativeEdge extends Component
     protected function resolveNavTabs(array $manifest): array
     {
         $nav = $manifest['navigation'] ?? [];
-        $tabs = is_array($nav) && isset($nav['tabs']) && is_array($nav['tabs']) ? $nav['tabs'] : [];
-        return array_values(array_filter($tabs, 'is_array'));
+        $bottomNav = is_array($nav) && isset($nav['bottom_nav']) && is_array($nav['bottom_nav'])
+            ? $nav['bottom_nav']
+            : [];
+        return array_values(array_filter($bottomNav, 'is_array'));
     }
 
     /**
-     * All screens to list in the side-nav drawer. Defaults to every screen
-     * in the manifest so the hamburger shows a full map of the app —
-     * publishers who want a curated drawer can override via the
-     * `navigation.drawer` manifest key.
+     * Drawer entries come from `navigation.drawer` — a tree projected by
+     * the publisher from every published screen. Sibling order follows
+     * the screen's menu_order; children are preserved so the blade layer
+     * can render nested sections.
      *
      * @param array<string, mixed> $manifest
      * @return array<int, array<string, mixed>>
@@ -253,69 +305,27 @@ class NativeEdge extends Component
     protected function resolveDrawerScreens(array $manifest): array
     {
         $nav = $manifest['navigation'] ?? [];
-        if (is_array($nav) && isset($nav['drawer']) && is_array($nav['drawer'])) {
-            return array_values(array_filter($nav['drawer'], 'is_array'));
-        }
-
-        $screens = $manifest['screens'] ?? [];
-        if (! is_array($screens)) {
+        if (! is_array($nav) || ! isset($nav['drawer']) || ! is_array($nav['drawer'])) {
             return [];
         }
-        return array_values(array_filter(
-            array_map(
-                static fn ($s) => is_array($s) ? [
-                    'title' => (string) ($s['title'] ?? ''),
-                    'path'  => (string) ($s['path']  ?? '/'),
-                    'icon'  => (string) ($s['icon']  ?? 'document'),
-                    'id'    => $s['id'] ?? null,
-                ] : null,
-                $screens,
-            ),
-        ));
+        return array_values(array_filter($nav['drawer'], 'is_array'));
     }
 
     /**
-     * Pick the first readable pair of (manifest, signature) files from the
-     * candidate locations. Storage path wins when populated; base_path is
-     * the bundle-safe fallback written by BuildAssembler on every Ship It.
+     * Publisher-curated side-nav list (flat, ordered). Separate from the
+     * hierarchical drawer — shells typically pick one based on form factor
+     * or render both as a two-level navigation surface.
      *
-     * @return array{0: ?string, 1: ?string} manifest path, sig path (or nulls)
+     * @param array<string, mixed> $manifest
+     * @return array<int, array<string, mixed>>
      */
-    protected function resolveManifestPaths(): array
+    protected function resolveSideNav(array $manifest): array
     {
-        $candidates = [
-            [storage_path('app/mua-manifest.json'), storage_path('app/mua-manifest.sig')],
-            [base_path('mua-manifest.json'),         base_path('mua-manifest.sig')],
-        ];
-
-        foreach ($candidates as [$manifestPath, $sigPath]) {
-            if (is_file($manifestPath)) {
-                return [$manifestPath, $sigPath];
-            }
+        $nav = $manifest['navigation'] ?? [];
+        if (! is_array($nav) || ! isset($nav['side_nav']) || ! is_array($nav['side_nav'])) {
+            return [];
         }
-        return [null, null];
-    }
-
-    /**
-     * If the manifest came from the bundle fallback, copy it (and the sig)
-     * into the storage path so subsequent reads are fast and future writes
-     * (e.g. a pub-driven refresh) land in a stable location.
-     */
-    protected function persistManifestToStorage(string $raw, ?string $sourceSig): void
-    {
-        $storageManifest = storage_path('app/mua-manifest.json');
-        if (is_file($storageManifest)) {
-            return;
-        }
-        $storageDir = dirname($storageManifest);
-        if (! is_dir($storageDir)) {
-            @mkdir($storageDir, 0755, true);
-        }
-        @file_put_contents($storageManifest, $raw);
-
-        if ($sourceSig !== null && is_file($sourceSig)) {
-            @copy($sourceSig, storage_path('app/mua-manifest.sig'));
-        }
+        return array_values(array_filter($nav['side_nav'], 'is_array'));
     }
 
     /**
@@ -328,7 +338,6 @@ class NativeEdge extends Component
             return null;
         }
 
-        // Match on path only — /about?ref=abc should still find /about.
         $pathOnly = strtok($path, '?');
         $target   = rtrim((string) $pathOnly, '/') ?: '/';
 
@@ -342,11 +351,11 @@ class NativeEdge extends Component
             }
         }
 
-        // Fall back to the first screen if nothing matched; avoids a blank
-        // shell when the publisher hasn't configured a root path.
-        foreach ($screens as $screen) {
-            if (is_array($screen)) {
-                return $screen;
+        if ($target === '/') {
+            foreach ($screens as $screen) {
+                if (is_array($screen) && ! empty($screen['is_home'])) {
+                    return $screen;
+                }
             }
         }
 
@@ -355,28 +364,142 @@ class NativeEdge extends Component
 
     // --- Capability triggers (called from native-action blocks) --------
 
-    public function triggerCapability(string $capability, string $id = '', string $url = ''): void
+    /**
+     * Dispatch a native-action block to the matching NativePHP Mobile
+     * facade. `$payload` carries a URL or message string depending on
+     * the capability. `$options` is a free-form bag of extras (intensity,
+     * feedback mode) so the block can stay expressive without growing
+     * the signature on every new capability.
+     *
+     * Facades are resolved via `callIfExists` so a shell pinned to an
+     * older NativePHP release degrades gracefully instead of fatally
+     * booting — unmet capabilities simply no-op.
+     *
+     * @param array<string, mixed> $options
+     */
+    public function triggerCapability(string $capability, string $id = '', string $payload = '', array $options = []): void
     {
         switch ($capability) {
             case 'browser':
-                if ($url !== '') {
-                    Browser::open($url);
+                if ($payload !== '') {
+                    Browser::open($payload);
                 }
-                return;
+                break;
 
             case 'camera':
                 Camera::getPhoto();
-                return;
+                break;
+
+            case 'photo_library':
+                // Camera::pickImages($mediaType, $multiple, $maxItems) — verified
+                // against NativePHP/kitchen-sink-mobile 2.x Gallery.php. Defaults
+                // to a single-image pick since the block exposes no multi-select UI.
+                $this->callIfExists('\Native\Mobile\Facades\Camera', 'pickImages', ['image', false, 1]);
+                break;
+
+            case 'video_record':
+                // Returns a fluent recorder; the kitchen-sink demo omits ->start()
+                // because the Camera facade auto-starts on first no-arg call when
+                // maxDuration isn't set. Match that behaviour.
+                $this->callIfExists('\Native\Mobile\Facades\Camera', 'recordVideo');
+                break;
 
             case 'scanner':
                 Scanner::scan();
-                return;
+                break;
 
             case 'share':
-                if ($url !== '') {
-                    Share::url($url);
+                if ($payload !== '') {
+                    Share::url($payload);
                 }
-                return;
+                break;
+
+            case 'biometrics':
+                Biometrics::prompt($payload !== '' ? $payload : 'Authenticate');
+                break;
+
+            case 'haptics':
+                // NativePHP's `Haptics::vibrate()` takes no args in v2/v3 — an
+                // intensity bag was my earlier guess. Kept the `intensity`
+                // attribute on the block for when/if a future release adds it;
+                // for now it's a no-op carried through to `lastCallback` so
+                // blocks can still echo the chosen value.
+                $this->lastCallback['haptics'] = ['intensity' => (string) ($options['intensity'] ?? 'medium')];
+                $this->callIfExists('\Native\Mobile\Facades\Haptics', 'vibrate');
+                break;
+
+            case 'flashlight':
+                // `Device::flashlight()` toggles; we mirror the toggle in state
+                // so blocks can show the last known on/off without polling the
+                // device (there's no flashlight-changed event exposed).
+                $on = ! ($this->lastCallback['flashlight']['on'] ?? false);
+                $this->lastCallback['flashlight'] = ['on' => $on];
+                $this->callIfExists('\Native\Mobile\Facades\Device', 'flashlight');
+                break;
+
+            case 'geolocation':
+                // iOS/Android require a one-shot permission prompt before a
+                // position request; kitchen-sink splits this into two user
+                // actions, but for a single-button block we fire both and let
+                // the `LocationReceived` / permission events resolve async.
+                $this->callIfExists('\Native\Mobile\Facades\Geolocation', 'requestPermissions');
+                $this->callIfExists('\Native\Mobile\Facades\Geolocation', 'getCurrentPosition', [true]);
+                break;
+
+            case 'microphone':
+                // Microphone::record() requires a consumer-supplied event class
+                // (verified against kitchen-sink Microphone.php). `AudioRecorded`
+                // is our shell-local class; the listener below receives it.
+                $facade = '\Native\Mobile\Facades\Microphone';
+                if (\class_exists($facade) && \method_exists($facade, 'record')) {
+                    try {
+                        $facade::record()->event(AudioRecorded::class)->start();
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('microphone record failed', ['error' => $e->getMessage()]);
+                    }
+                }
+                break;
+
+            case 'dialog_alert':
+                $this->callIfExists('\Native\Mobile\Facades\Dialog', 'alert', [$payload !== '' ? $payload : 'Alert']);
+                break;
+
+            case 'dialog_toast':
+                $this->callIfExists('\Native\Mobile\Facades\Dialog', 'toast', [$payload !== '' ? $payload : 'Done']);
+                break;
+        }
+
+        // Feedback ladder — post-action UI confirmation. Skipped when the
+        // capability is itself a dialog (user already saw a primary surface).
+        $feedback = \is_string($options['feedback'] ?? null) ? $options['feedback'] : 'none';
+        if ($feedback !== 'none' && ! \in_array($capability, ['dialog_alert', 'dialog_toast'], true)) {
+            $method = $feedback === 'alert' ? 'alert' : 'toast';
+            $this->callIfExists('\Native\Mobile\Facades\Dialog', $method, [\ucfirst($capability) . ' done']);
+        }
+    }
+
+    /**
+     * Invoke a static method on a NativePHP facade only if both the class
+     * and method exist in the installed version. Returns the method's
+     * return value on success, null otherwise, so callers can chain a
+     * fallback with `?:`.
+     *
+     * @param array<int, mixed> $args
+     */
+    protected function callIfExists(string $facade, string $method, array $args = []): mixed
+    {
+        if (! \class_exists($facade) || ! \method_exists($facade, $method)) {
+            return null;
+        }
+        try {
+            return $facade::$method(...$args);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('native facade call failed', [
+                'facade' => $facade,
+                'method' => $method,
+                'error'  => $e->getMessage(),
+            ]);
+            return null;
         }
     }
 
@@ -389,11 +512,33 @@ class NativeEdge extends Component
     /**
      * Fired by pull-to-refresh. Every DynamicBlock and QueryLoop on the
      * screen listens for `block-refresh` and drops its PubClient cache
-     * entry in response.
+     * entry in response. Also refreshes device + network snapshots so
+     * the display blocks reflect the current state.
      */
     public function triggerRefresh(): void
     {
+        $this->refreshDeviceState();
         $this->dispatch('block-refresh');
+    }
+
+    /**
+     * Re-read Device + Network facades into component state. NativePHP
+     * Mobile v3 doesn't expose NetworkChanged / BatteryChanged listeners,
+     * so we hydrate on mount + pull-to-refresh + after every capability
+     * trigger. Facades that aren't present (older shell build) just leave
+     * the snapshot empty — the blade side falls back to placeholders.
+     */
+    protected function refreshDeviceState(): void
+    {
+        $device  = $this->callIfExists('\Native\Mobile\Facades\Device', 'getInfo');
+        $battery = $this->callIfExists('\Native\Mobile\Facades\Device', 'getBatteryInfo');
+        $network = $this->callIfExists('\Native\Mobile\Facades\Network', 'status');
+
+        $this->deviceInfo    = \array_merge(
+            \is_array($device)  ? $device  : [],
+            \is_array($battery) ? ['battery' => $battery] : [],
+        );
+        $this->networkStatus = \is_array($network) ? $network : [];
     }
 
     // --- Native event listeners (async completion callbacks) -----------
@@ -428,6 +573,120 @@ class NativeEdge extends Component
         if ($id !== null && $id !== '') {
             $this->gates[$id] = $success;
         }
+    }
+
+    #[OnNative(VideoRecorded::class)]
+    public function onVideoRecorded(string $path, ?string $mimeType = null, ?string $id = null): void
+    {
+        $this->lastCallback['video_record'] = [
+            'path'     => $path,
+            'mimeType' => $mimeType,
+            'id'       => $id,
+        ];
+    }
+
+    #[OnNative(VideoCancelled::class)]
+    public function onVideoCancelled(): void
+    {
+        $this->lastCallback['video_record'] = [
+            'path'      => null,
+            'cancelled' => true,
+        ];
+    }
+
+    /**
+     * The Gallery event ships `(success, files[], count)` — `files` is an
+     * array of `{path, type}` entries. We pack the whole payload onto the
+     * callback slot and let the block-side renderer extract what it needs.
+     *
+     * @param array<int, array<string, mixed>> $files
+     */
+    #[OnNative(MediaSelected::class)]
+    public function onMediaSelected(bool $success, array $files = [], int $count = 0): void
+    {
+        $this->lastCallback['photo_library'] = [
+            'success' => $success,
+            'files'   => $files,
+            'count'   => $count,
+        ];
+    }
+
+    #[OnNative(LocationReceived::class)]
+    public function onLocationReceived(
+        ?bool $success = null,
+        ?float $latitude = null,
+        ?float $longitude = null,
+        ?float $accuracy = null,
+        ?int $timestamp = null,
+        ?string $provider = null,
+        ?string $error = null,
+    ): void {
+        $this->lastCallback['geolocation'] = [
+            'success'   => $success,
+            'latitude'  => $latitude,
+            'longitude' => $longitude,
+            'accuracy'  => $accuracy,
+            'timestamp' => $timestamp,
+            'provider'  => $provider,
+            'error'     => $error,
+        ];
+    }
+
+    #[OnNative(GeoPermissionStatusReceived::class)]
+    public function onGeoPermissionStatus(?string $location = null, ?string $coarseLocation = null, ?string $fineLocation = null): void
+    {
+        $this->lastCallback['geolocation_permission'] = [
+            'location'        => $location,
+            'coarseLocation'  => $coarseLocation,
+            'fineLocation'    => $fineLocation,
+        ];
+    }
+
+    #[OnNative(GeoPermissionRequestResult::class)]
+    public function onGeoPermissionRequest(
+        ?string $location = null,
+        ?string $coarseLocation = null,
+        ?string $fineLocation = null,
+        ?string $message = null,
+        ?bool $needsSettings = null,
+    ): void {
+        $this->lastCallback['geolocation_permission'] = [
+            'location'       => $location,
+            'coarseLocation' => $coarseLocation,
+            'fineLocation'   => $fineLocation,
+            'message'        => $message,
+            'needsSettings'  => $needsSettings,
+        ];
+    }
+
+    /**
+     * Fires when the native `Microphone::record()->event(AudioRecorded)->start()`
+     * call completes. Signature mirrors kitchen-sink's handler so the
+     * NativePHP-side argument tuple stays compatible.
+     */
+    #[OnNative(AudioRecorded::class)]
+    public function onAudioRecorded(string $path, ?string $mimeType = null, ?string $id = null): void
+    {
+        $this->lastCallback['microphone'] = [
+            'path'     => $path,
+            'mimeType' => $mimeType,
+            'id'       => $id,
+        ];
+    }
+
+    /**
+     * Dialog alert button tap. The shell can't know which logical block
+     * opened the alert, so we key the callback slot by the returned id
+     * (NativePHP sets this when the caller passed one). Generic "alert
+     * was dismissed" consumers just read `dialog_alert`.
+     */
+    #[OnNative(AlertButtonPressed::class)]
+    public function onAlertButtonPressed(?string $button = null, ?string $id = null): void
+    {
+        $this->lastCallback['dialog_alert'] = [
+            'button' => $button,
+            'id'     => $id,
+        ];
     }
 
     public function render()

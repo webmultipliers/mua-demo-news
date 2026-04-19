@@ -1,5 +1,6 @@
 {
     "version": 1,
+    "min_shell_version": 1,
     "app": {
         "id": 65,
         "slug": "mustuse-news",
@@ -23,17 +24,31 @@
         "background_color": "#ffffff"
     },
     "routing": [],
-    "navigation": [
-        {
-            "screen_id": "home-2",
-            "label": "Home",
-            "icon": "",
-            "order": 0
-        }
-    ],
+    "navigation": {
+        "bottom_nav": [
+            {
+                "screen_id": "home-2",
+                "path": "\/",
+                "label": "Home",
+                "icon": "",
+                "order": 0
+            }
+        ],
+        "side_nav": [],
+        "drawer": [
+            {
+                "screen_id": "home-2",
+                "path": "\/",
+                "title": "Home",
+                "icon": "",
+                "children": []
+            }
+        ]
+    },
     "screen_tree": [
         {
             "screen_id": "home-2",
+            "path": "\/",
             "title": "Home",
             "icon": "",
             "children": []
@@ -42,6 +57,7 @@
     "screens": [
         {
             "id": "home-2",
+            "path": "\/",
             "type": "screen",
             "title": "Home",
             "block_tree": [
@@ -54,8 +70,43 @@
                 {
                     "type": "core\/paragraph",
                     "attributes": []
+                },
+                {
+                    "type": "core\/image",
+                    "attributes": {
+                        "id": 72,
+                        "sizeSlug": "large",
+                        "linkDestination": "none"
+                    }
+                },
+                {
+                    "type": "mustuse-apps-pub\/query-loop",
+                    "attributes": [],
+                    "children": [
+                        {
+                            "type": "mustuse-apps-pub\/post-template",
+                            "attributes": [],
+                            "children": [
+                                {
+                                    "type": "mustuse-apps-pub\/post-title",
+                                    "attributes": {
+                                        "blockstudio": {
+                                            "attributes": {
+                                                "level": {
+                                                    "value": "h2",
+                                                    "label": "H2"
+                                                },
+                                                "linkToPost": true
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
                 }
-            ]
+            ],
+            "is_home": true
         }
     ],
     "deeplink": null,
@@ -224,6 +275,11 @@
                 "swr": true
             }
         },
+        "mustuse-apps-pub\/device-info": {
+            "version": 2,
+            "description": "Read-only device status panel. The shell reads Device::getInfo() \/ Device::getBatteryInfo() on mount and re-renders via #[OnNative(BatteryChanged)]. No user action.",
+            "required_capability": "device"
+        },
         "mustuse-apps-pub\/divider": {
             "type": "divider"
         },
@@ -328,6 +384,11 @@
                     "style": "caption"
                 }
             ]
+        },
+        "mustuse-apps-pub\/network-status": {
+            "version": 2,
+            "description": "Live connectivity indicator. The shell reads Network::status() on mount and re-renders via #[OnNative(NetworkChanged)]. No user action.",
+            "required_capability": "network"
         },
         "mustuse-apps-pub\/post-author-avatar": {
             "version": 2,

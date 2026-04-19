@@ -132,6 +132,15 @@ return [
         '*_SECRET',
         'DB_PASSWORD',
         'DB_USERNAME',
+        // Manifest signing key — must never be bundled. Bifrost injects it
+        // at boot via the runtime env, so the bundled .env should never
+        // carry the value even if a developer set it locally to test
+        // signature verification.
+        'MUA_APPKEY',
+        // Laravel APP_KEY is per-install and lives in the runtime env
+        // injected by Bifrost. If a publisher sets it locally to a real
+        // value it must not bake into the production bundle.
+        'APP_KEY',
     ],
 
     /*
@@ -276,17 +285,22 @@ return [
     */
 
     'permissions' => [
-        'biometric' => false,
-        'camera' => false,
-        'microphone' => false,
+        // Defaults mirror the capabilities the Publisher plugin exposes
+        // as native-action blocks (plus device + network display blocks).
+        // iOS requires a reason string for every user-facing permission;
+        // using literal strings here both enables the permission and
+        // seeds Info.plist via `php artisan native:install`.
+        'biometric'             => 'Unlock subscriber-only content and authenticate sensitive actions.',
+        'camera'                => 'Capture photos and videos inside the app.',
+        'microphone'            => 'Record audio for attachments, voice notes, or feedback.',
         'microphone_background' => false,
-        'push_notifications' => false,
-        'location' => false,
-        'vibrate' => false,
-        'storage_read' => false,
-        'storage_write' => false,
-        'scanner' => false,
-        'network_state' => true,
+        'push_notifications'    => 'Deliver breaking news and personalized alerts.',
+        'location'              => 'Show nearby content and contextually relevant updates.',
+        'vibrate'               => 'Provide tactile feedback for notable interactions.',
+        'storage_read'          => false,
+        'storage_write'         => false,
+        'scanner'               => 'Scan QR codes and barcodes from within the app.',
+        'network_state'         => true,
     ],
 
     /*

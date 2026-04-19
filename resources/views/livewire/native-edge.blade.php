@@ -6,18 +6,19 @@
 --}}
 <div>
     @php
-        $isAndroid      = \Native\Mobile\Facades\System::isAndroid();
-        $displayTitle   = $isAndroid ? ($title ?: 'App') : '';
-        $hasDrawer      = ! empty($drawerScreens);
+        $isAndroid    = \Native\Mobile\Facades\System::isAndroid();
+        $displayTitle = $isAndroid ? ($title ?: 'App') : '';
+        $sideEntries  = ! empty($sideNav) ? $sideNav : $drawerScreens;
+        $hasSideMenu  = ! empty($sideEntries);
     @endphp
 
     <native:top-bar
         title="{{ $displayTitle }}"
-        show-navigation-icon="{{ $hasDrawer ? 'true' : 'false' }}"
+        show-navigation-icon="{{ $hasSideMenu ? 'true' : 'false' }}"
     >
     </native:top-bar>
 
-    @if ($hasDrawer)
+    @if ($hasSideMenu)
         <native:side-nav :gestures_enabled="true">
             <native:side-nav-header
                 title="{{ $title ?: 'App' }}"
@@ -25,13 +26,13 @@
                 :show-close-button="true"
                 pinned
             />
-            @foreach ($drawerScreens as $entry)
+            @foreach ($sideEntries as $entry)
                 @php
                     $entryPath = rtrim((string) ($entry['path'] ?? '/'), '/') ?: '/';
                     $active    = $entryPath === rtrim($path, '/');
                 @endphp
                 <native:side-nav-item
-                    id="{{ $entry['id'] ?? $entryPath }}"
+                    id="{{ $entry['screen_id'] ?? $entry['id'] ?? $entryPath }}"
                     icon="{{ $entry['icon'] ?? 'document' }}"
                     label="{{ $entry['title'] ?? $entry['label'] ?? '' }}"
                     url="{{ $entry['path'] ?? '/' }}"
@@ -45,9 +46,14 @@
         <main class="mua-screen" data-screen-id="{{ $screen['id'] ?? '' }}">
             @foreach (($screen['block_tree'] ?? []) as $block)
                 @include('livewire.partials.dispatch-block', [
-                    'block'   => $block,
-                    'context' => $this->context,
-                    'gates'   => $this->gates,
+                    'block'      => $block,
+                    'context'    => $this->context,
+                    'gates'      => $this->gates,
+                    'shellState' => [
+                        'deviceInfo'    => $this->deviceInfo,
+                        'networkStatus' => $this->networkStatus,
+                        'lastCallback'  => $this->lastCallback,
+                    ],
                 ])
             @endforeach
         </main>
@@ -61,7 +67,7 @@
         <native:bottom-nav label-visibility="labeled">
             @foreach ($navTabs as $tab)
                 <native:bottom-nav-item
-                    id="{{ $tab['id'] ?? $tab['path'] ?? $loop->index }}"
+                    id="{{ $tab['screen_id'] ?? $tab['id'] ?? $tab['path'] ?? $loop->index }}"
                     icon="{{ $tab['icon'] ?? 'home' }}"
                     label="{{ $tab['title'] ?? $tab['label'] ?? '' }}"
                     url="{{ $tab['path'] ?? '/' }}"
