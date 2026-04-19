@@ -23,17 +23,30 @@
         "background_color": "#ffffff"
     },
     "routing": [],
-    "navigation": [
-        {
-            "screen_id": "home-2",
-            "label": "Home",
-            "icon": "",
-            "order": 0
-        }
-    ],
+    "navigation": {
+        "bottom_nav": [
+            {
+                "screen_id": "home-2",
+                "path": "\/",
+                "label": "Home",
+                "icon": "",
+                "order": 0
+            }
+        ],
+        "drawer": [
+            {
+                "screen_id": "home-2",
+                "path": "\/",
+                "title": "Home",
+                "icon": "",
+                "children": []
+            }
+        ]
+    },
     "screen_tree": [
         {
             "screen_id": "home-2",
+            "path": "\/",
             "title": "Home",
             "icon": "",
             "children": []
@@ -42,6 +55,7 @@
     "screens": [
         {
             "id": "home-2",
+            "path": "\/",
             "type": "screen",
             "title": "Home",
             "block_tree": [
@@ -55,7 +69,8 @@
                     "type": "core\/paragraph",
                     "attributes": []
                 }
-            ]
+            ],
+            "is_home": true
         }
     ],
     "deeplink": null,

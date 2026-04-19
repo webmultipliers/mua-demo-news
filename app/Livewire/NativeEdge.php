@@ -85,14 +85,10 @@ class NativeEdge extends Component
 
     protected function loadManifest(): void
     {
-        // Bifrost's mobile runtime may not extract `storage/app/` from the
-        // APK assets (storage is treated as runtime-writable and can start
-        // empty on first boot). Fall back to a copy at `base_path()` that
-        // is guaranteed to live alongside the extracted app, and self-heal
-        // the storage copy on the first successful read.
-        [$manifestPath, $sigPath] = $this->resolveManifestPaths();
+        $manifestPath = storage_path('app/mua-manifest.json');
+        $sigPath      = storage_path('app/mua-manifest.sig');
 
-        if ($manifestPath === null) {
+        if (! is_file($manifestPath)) {
             $this->message = 'Manifest not found. Project a build from the publisher and redeploy this shell.';
             return;
         }
@@ -102,8 +98,6 @@ class NativeEdge extends Component
             $this->message = 'Could not read manifest file.';
             return;
         }
-
-        $this->persistManifestToStorage($raw, $sigPath);
 
         // HMAC verification (fail-closed when key is configured). The pub's
         // BuildAssembler signs the exact bytes it wrote; we HMAC those same
@@ -237,15 +231,17 @@ class NativeEdge extends Component
     protected function resolveNavTabs(array $manifest): array
     {
         $nav = $manifest['navigation'] ?? [];
-        $tabs = is_array($nav) && isset($nav['tabs']) && is_array($nav['tabs']) ? $nav['tabs'] : [];
-        return array_values(array_filter($tabs, 'is_array'));
+        $bottomNav = is_array($nav) && isset($nav['bottom_nav']) && is_array($nav['bottom_nav'])
+            ? $nav['bottom_nav']
+            : [];
+        return array_values(array_filter($bottomNav, 'is_array'));
     }
 
     /**
-     * All screens to list in the side-nav drawer. Defaults to every screen
-     * in the manifest so the hamburger shows a full map of the app —
-     * publishers who want a curated drawer can override via the
-     * `navigation.drawer` manifest key.
+     * Drawer entries come from `navigation.drawer` — a tree projected by
+     * the publisher from every published screen. Sibling order follows
+     * the screen's menu_order; children are preserved so the blade layer
+     * can render nested sections.
      *
      * @param array<string, mixed> $manifest
      * @return array<int, array<string, mixed>>
@@ -253,69 +249,10 @@ class NativeEdge extends Component
     protected function resolveDrawerScreens(array $manifest): array
     {
         $nav = $manifest['navigation'] ?? [];
-        if (is_array($nav) && isset($nav['drawer']) && is_array($nav['drawer'])) {
-            return array_values(array_filter($nav['drawer'], 'is_array'));
-        }
-
-        $screens = $manifest['screens'] ?? [];
-        if (! is_array($screens)) {
+        if (! is_array($nav) || ! isset($nav['drawer']) || ! is_array($nav['drawer'])) {
             return [];
         }
-        return array_values(array_filter(
-            array_map(
-                static fn ($s) => is_array($s) ? [
-                    'title' => (string) ($s['title'] ?? ''),
-                    'path'  => (string) ($s['path']  ?? '/'),
-                    'icon'  => (string) ($s['icon']  ?? 'document'),
-                    'id'    => $s['id'] ?? null,
-                ] : null,
-                $screens,
-            ),
-        ));
-    }
-
-    /**
-     * Pick the first readable pair of (manifest, signature) files from the
-     * candidate locations. Storage path wins when populated; base_path is
-     * the bundle-safe fallback written by BuildAssembler on every Ship It.
-     *
-     * @return array{0: ?string, 1: ?string} manifest path, sig path (or nulls)
-     */
-    protected function resolveManifestPaths(): array
-    {
-        $candidates = [
-            [storage_path('app/mua-manifest.json'), storage_path('app/mua-manifest.sig')],
-            [base_path('mua-manifest.json'),         base_path('mua-manifest.sig')],
-        ];
-
-        foreach ($candidates as [$manifestPath, $sigPath]) {
-            if (is_file($manifestPath)) {
-                return [$manifestPath, $sigPath];
-            }
-        }
-        return [null, null];
-    }
-
-    /**
-     * If the manifest came from the bundle fallback, copy it (and the sig)
-     * into the storage path so subsequent reads are fast and future writes
-     * (e.g. a pub-driven refresh) land in a stable location.
-     */
-    protected function persistManifestToStorage(string $raw, ?string $sourceSig): void
-    {
-        $storageManifest = storage_path('app/mua-manifest.json');
-        if (is_file($storageManifest)) {
-            return;
-        }
-        $storageDir = dirname($storageManifest);
-        if (! is_dir($storageDir)) {
-            @mkdir($storageDir, 0755, true);
-        }
-        @file_put_contents($storageManifest, $raw);
-
-        if ($sourceSig !== null && is_file($sourceSig)) {
-            @copy($sourceSig, storage_path('app/mua-manifest.sig'));
-        }
+        return array_values(array_filter($nav['drawer'], 'is_array'));
     }
 
     /**
@@ -328,7 +265,6 @@ class NativeEdge extends Component
             return null;
         }
 
-        // Match on path only — /about?ref=abc should still find /about.
         $pathOnly = strtok($path, '?');
         $target   = rtrim((string) $pathOnly, '/') ?: '/';
 
@@ -342,11 +278,11 @@ class NativeEdge extends Component
             }
         }
 
-        // Fall back to the first screen if nothing matched; avoids a blank
-        // shell when the publisher hasn't configured a root path.
-        foreach ($screens as $screen) {
-            if (is_array($screen)) {
-                return $screen;
+        if ($target === '/') {
+            foreach ($screens as $screen) {
+                if (is_array($screen) && ! empty($screen['is_home'])) {
+                    return $screen;
+                }
             }
         }
 

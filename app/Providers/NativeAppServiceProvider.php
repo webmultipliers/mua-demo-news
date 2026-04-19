@@ -29,6 +29,25 @@ class NativeAppServiceProvider extends ServiceProvider
     }
 
     /**
+     * Capability plugins registered for this shell.
+     *
+     * NativePHP v3 requires explicit per-app registration of any plugin
+     * the manifest declares (camera, scanner, biometrics, push, etc.) —
+     * Composer auto-discovery is intentionally bypassed so apps don't
+     * inherit unwanted native code from transitive dependencies.
+     *
+     * Default-empty: the demo manifests in this blueprint don't need any
+     * native plugins. Publishers extend this list when their manifest
+     * declares a `requiredCapabilities` entry.
+     *
+     * @return list<class-string>
+     */
+    public function plugins(): array
+    {
+        return [];
+    }
+
+    /**
      * Self-heal a missing APP_KEY on-device.
      *
      * Bifrost is expected to inject APP_KEY via its environment UI, but

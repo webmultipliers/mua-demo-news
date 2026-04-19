@@ -132,6 +132,15 @@ return [
         '*_SECRET',
         'DB_PASSWORD',
         'DB_USERNAME',
+        // Manifest signing key — must never be bundled. Bifrost injects it
+        // at boot via the runtime env, so the bundled .env should never
+        // carry the value even if a developer set it locally to test
+        // signature verification.
+        'MUA_APPKEY',
+        // Laravel APP_KEY is per-install and lives in the runtime env
+        // injected by Bifrost. If a publisher sets it locally to a real
+        // value it must not bake into the production bundle.
+        'APP_KEY',
     ],
 
     /*

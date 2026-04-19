@@ -31,7 +31,7 @@
                     $active    = $entryPath === rtrim($path, '/');
                 @endphp
                 <native:side-nav-item
-                    id="{{ $entry['id'] ?? $entryPath }}"
+                    id="{{ $entry['screen_id'] ?? $entry['id'] ?? $entryPath }}"
                     icon="{{ $entry['icon'] ?? 'document' }}"
                     label="{{ $entry['title'] ?? $entry['label'] ?? '' }}"
                     url="{{ $entry['path'] ?? '/' }}"
@@ -61,7 +61,7 @@
         <native:bottom-nav label-visibility="labeled">
             @foreach ($navTabs as $tab)
                 <native:bottom-nav-item
-                    id="{{ $tab['id'] ?? $tab['path'] ?? $loop->index }}"
+                    id="{{ $tab['screen_id'] ?? $tab['id'] ?? $tab['path'] ?? $loop->index }}"
                     icon="{{ $tab['icon'] ?? 'home' }}"
                     label="{{ $tab['title'] ?? $tab['label'] ?? '' }}"
                     url="{{ $tab['path'] ?? '/' }}"

@@ -1,17 +1,23 @@
 {{--
-    Dispatch decisions, by slug + native.json shape:
-      query-loop      → <livewire:query-loop>     (iterates per item)
-      post-template   → render children once      (surfaced outside a loop)
-      dataSource set  → <livewire:dynamic-block>  (single-block fetch)
-      otherwise       → plain Blade component     ($context prop always passed)
+    Dispatch decisions, by type prefix + native.json shape:
+      mustuse-apps-pub/query-loop     → <livewire:query-loop>     (iterates per item)
+      mustuse-apps-pub/post-template  → render children once      (surfaced outside a loop)
+      mustuse-apps-pub/* + dataSource → <livewire:dynamic-block>  (single-block fetch)
+      mustuse-apps-pub/*              → plain Blade component     ($context always passed)
+      core/*                          → minimal HTML fallback     (heading/paragraph/etc.)
+      anything else                   → silently skipped
 --}}
 @php
     $type            = $block['type'] ?? ($block['blockName'] ?? '');
-    $slug            = \Illuminate\Support\Str::after($type, 'mustuse-apps-pub/');
     $blockAttributes = $block['attributes'] ?? [];
     $children        = $block['children'] ?? ($block['innerBlocks'] ?? []);
     $context         = $context ?? null;
     $gates           = $gates   ?? [];
+
+    $isMustuse = str_starts_with($type, 'mustuse-apps-pub/');
+    $isCore    = str_starts_with($type, 'core/');
+    $slug      = $isMustuse ? substr($type, strlen('mustuse-apps-pub/')) : '';
+    $coreName  = $isCore    ? substr($type, strlen('core/'))             : '';
 
     $nativePath = $slug !== '' && preg_match('/^[a-z0-9][a-z0-9-]*$/', $slug)
         ? public_path('blocks/' . $slug . '/native.json')
@@ -26,10 +32,7 @@
     $componentAlias = $slug !== '' ? 'components.mustuse.' . $slug : null;
 @endphp
 
-@if ($slug === '')
-    {{-- unknown block type — silently skip so older shells survive new pub blocks --}}
-
-@elseif ($slug === 'query-loop')
+@if ($slug === 'query-loop')
     <livewire:query-loop
         :attributes="$blockAttributes"
         :children="$children"
@@ -61,4 +64,13 @@
         'context'  => $context,
     ])
     @endcomponent
+
+@elseif ($isCore)
+    @include('livewire.partials.core-block', [
+        'name'       => $coreName,
+        'attributes' => $blockAttributes,
+        'children'   => $children,
+        'context'    => $context,
+        'gates'      => $gates,
+    ])
 @endif
