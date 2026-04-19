@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\Route;
 | Web Routes
 |--------------------------------------------------------------------------
 |
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
+| Every URL the embedded PHP runtime serves goes through NativeEdge so the
+| Livewire component can resolve the path against the signed manifest. No
+| separate route table — screens and deeplinks are manifest-driven.
 |
 */
 
-Route::get( '/{any?}', \App\Livewire\NativeEdge::class)
-	->where( 'any', '.*' )
-	->name( 'native-edge' );
+Route::get('/{any?}', \App\Livewire\NativeEdge::class)
+    ->where('any', '.*')
+    ->name('native-edge');
